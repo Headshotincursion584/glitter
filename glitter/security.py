@@ -87,21 +87,25 @@ class StreamCipher:
     def process(self, data: bytes) -> bytes:
         if not data:
             return b""
-        output = bytearray(len(data))
-        offset = 0
-        while offset < len(data):
-            if not self._buffer:
-                block = hashlib.sha256(
-                    self._key + self._nonce + self._counter.to_bytes(8, "big")
-                ).digest()
-                self._counter += 1
-                self._buffer = block
-            take = min(len(self._buffer), len(data) - offset)
-            for i in range(take):
-                output[offset + i] = data[offset + i] ^ self._buffer[i]
-            self._buffer = self._buffer[take:]
-            offset += take
+        needed = len(data)
+        if len(self._buffer) < needed:
+            self._buffer += self._generate_keystream(needed - len(self._buffer))
+        output = bytearray(needed)
+        for i in range(needed):
+            output[i] = data[i] ^ self._buffer[i]
+        self._buffer = self._buffer[needed:]
         return bytes(output)
+    
+    def _generate_keystream(self, size: int) -> bytes:
+        """Generate a block of keystream bytes."""
+        stream = bytearray()
+        while len(stream) < size:
+            block = hashlib.sha256(
+                self._key + self._nonce + self._counter.to_bytes(8, "big")
+            ).digest()
+            self._counter += 1
+            stream.extend(block)
+        return bytes(stream)
 
 
 def random_nonce(size: int = 16) -> bytes:

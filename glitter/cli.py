@@ -429,6 +429,7 @@ def send_file_cli(app: GlitterApp, language: str) -> None:
     print(get_message("waiting_recipient", language))
     print(get_message("cancel_hint", language))
     last_progress = {"sent": -1, "total": -1, "time": None}
+    throttle = {"min_interval": 0.2, "min_bytes": 1 * 1024 * 1024}
     progress_shown = {"value": False}
     handshake_announced = {"value": False}
     line_width = {"value": 0}
@@ -436,13 +437,11 @@ def send_file_cli(app: GlitterApp, language: str) -> None:
     def report_progress(sent: int, total: int) -> None:
         now = time.time()
         last_time = last_progress["time"]
-        if (
-            sent == last_progress["sent"]
-            and total == last_progress["total"]
-            and last_time is not None
-            and (now - last_time) < 0.1
-        ):
-            return
+        if last_time is not None:
+            if (now - last_time) < throttle["min_interval"]:
+                prev = last_progress["sent"]
+                if prev >= 0 and (sent - prev) < throttle["min_bytes"]:
+                    return
         if not handshake_announced["value"] and last_progress["sent"] < 0:
             print(get_message("recipient_accepted", language))
             handshake_announced["value"] = True
