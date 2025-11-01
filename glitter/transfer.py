@@ -31,7 +31,7 @@ from .security import (
     random_nonce,
 )
 
-BUFFER_SIZE = 1024 * 1024
+BUFFER_SIZE = 512 * 1024
 PROTOCOL_VERSION = 1
 DEFAULT_TRANSFER_PORT = 45846
 

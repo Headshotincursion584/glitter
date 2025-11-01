@@ -43,6 +43,7 @@ class TerminalUI:
     def __init__(self, console: Optional[Console] = None) -> None:
         self._console = console or Console(markup=False, highlight=False, soft_wrap=True)
         self._lock = threading.Lock()
+        self._last_carriage_width = 0
 
     def print(self, message: str = "", *, end: str = "\n") -> None:
         with self._lock:
@@ -53,20 +54,29 @@ class TerminalUI:
                 highlight=False,
                 soft_wrap=True,
             )
+            try:
+                self._console.file.flush()
+            except Exception:  # noqa: BLE001
+                pass
+            self._last_carriage_width = 0
 
     def input(self, prompt: str) -> str:
-        with self._lock:
-            return self._console.input(prompt, markup=False)
+        self.flush()
+        self._last_carriage_width = 0
+        return self._console.input(prompt, markup=False)
 
     def carriage(self, message: str, padding: str = "") -> None:
         with self._lock:
-            self._console.print(
-                "\r" + message + padding,
-                end="",
-                markup=False,
-                highlight=False,
-                soft_wrap=True,
-            )
+            rendered = message + padding
+            residual = self._last_carriage_width - len(rendered)
+            if residual > 0:
+                rendered = rendered + (" " * residual)
+            try:
+                self._console.file.write("\r" + rendered)
+                self._console.file.flush()
+            except Exception:  # noqa: BLE001
+                pass
+            self._last_carriage_width = len(rendered)
 
     def blank(self) -> None:
         self.print()
@@ -77,6 +87,7 @@ class TerminalUI:
                 self._console.file.flush()
             except Exception:  # noqa: BLE001
                 pass
+            self._last_carriage_width = 0
 
 
 class GlitterApp:
@@ -504,7 +515,7 @@ def send_file_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
     ui.print(get_message("waiting_recipient", language))
     ui.print(get_message("cancel_hint", language))
     last_progress = {"sent": -1, "total": -1, "time": None}
-    throttle = {"min_interval": 0.2, "min_bytes": 1 * 1024 * 1024}
+    throttle = {"min_interval": 0.1, "min_bytes": 512 * 1024}
     progress_shown = {"value": False}
     handshake_announced = {"value": False}
     line_width = {"value": 0}
@@ -1011,6 +1022,7 @@ def wait_for_completion(
     last_sent = -1
     last_time = None
     progress_shown = False
+    line_width = 0
     while ticket.status in {"pending", "receiving"}:
         if ticket.status == "receiving":
             sent = ticket.bytes_transferred
@@ -1028,7 +1040,10 @@ def wait_for_completion(
                     total=format_size(total),
                     rate=format_rate(rate),
                 )
-                ui.carriage(message)
+                if len(message) > line_width:
+                    line_width = len(message)
+                padding = " " * max(0, line_width - len(message))
+                ui.carriage(message, padding)
                 last_sent = sent
                 last_time = now
                 progress_shown = True
@@ -1037,6 +1052,26 @@ def wait_for_completion(
             ticket.status = "failed"
             ticket.error = "timeout"
             break
+    if ticket.status == "completed":
+        final_sent = ticket.bytes_transferred
+        final_total = ticket.filesize if ticket.filesize else final_sent
+        if final_sent >= 0 and final_sent != last_sent:
+            now = time.time()
+            delta_bytes = final_sent - last_sent if last_sent >= 0 else final_sent
+            delta_time = (now - last_time) if last_time else 0.0
+            rate = delta_bytes / delta_time if delta_time > 0 else 0.0
+            message = get_message(
+                "progress_line",
+                language,
+                transferred=format_size(final_sent),
+                total=format_size(final_total),
+                rate=format_rate(rate),
+            )
+            if len(message) > line_width:
+                line_width = len(message)
+            padding = " " * max(0, line_width - len(message))
+            ui.carriage(message, padding)
+            progress_shown = True
     if progress_shown:
         ui.blank()
 
