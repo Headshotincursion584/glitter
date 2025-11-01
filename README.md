@@ -22,7 +22,7 @@ Requirements: [Python 3.9+](https://www.python.org/downloads/)
 - Windows (PowerShell/CMD)
   - Run: `python3 -m glitter`
 
-On first run, Glitter asks for language and device name and saves them under `~/.glitter/config.json`. Next runs go straight to the main menu.
+On first run, Glitter asks for language and device name and saves them. Next runs go straight to the main menu.
 
 ## Usage
 

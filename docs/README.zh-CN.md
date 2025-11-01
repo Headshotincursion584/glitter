@@ -20,7 +20,7 @@ Glitter 是一个跨平台、终端界面的局域网文件互传工具，自动
 - Linux/macOS/WSL：`python3 -m glitter`
 - Windows（PowerShell/CMD）：`python3 -m glitter`
 
-首次启动会提示选择语言与设备名称，并保存到 `~/.glitter/config.json`。之后启动将直接进入主菜单。
+首次启动会提示选择语言与设备名称，并保存。之后启动将直接进入主菜单。
 
 ## 用法
 
