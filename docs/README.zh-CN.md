@@ -12,7 +12,7 @@ Glitter 是一个跨平台、终端界面的局域网文件互传工具，自动
 - 历史记录保存到用户目录（JSONL）
 - 设置语言与设备名，支持清空历史和加密
 
-英文版文档请见仓库根目录 [README.md](../README.md)。
+英文版文档请见仓库根目录 [README.md](https://github.com/scarletkc/glitter/blob/main/README.md)。
 
 ## 为什么选择 Glitter？
 
@@ -79,4 +79,4 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 ## 许可证
 
-[MIT](../LICENSE)
+[MIT](https://github.com/scarletkc/glitter/blob/main/LICENSE)
