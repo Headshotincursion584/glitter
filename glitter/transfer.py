@@ -67,6 +67,7 @@ class TransferTicket:
     content_type: str = "file"
     archive_format: Optional[str] = None
     original_size: Optional[int] = None
+    encrypted: bool = True
     status: str = "pending"
     error: Optional[str] = None
     saved_path: Optional[Path] = None
@@ -114,6 +115,7 @@ class TransferService:
         on_cancelled_request: Optional[Callable[[TransferTicket], None]] = None,
         bind_port: int = DEFAULT_TRANSFER_PORT,
         allow_ephemeral_fallback: bool = True,
+        encryption_enabled: bool = True,
     ) -> None:
         self.device_id = device_id
         self.device_name = device_name
@@ -122,9 +124,11 @@ class TransferService:
         self.on_cancelled_request = on_cancelled_request
         self.bind_port = bind_port
         self._allow_ephemeral_fallback = allow_ephemeral_fallback
+        self._encryption_enabled = encryption_enabled
 
         self._pending: Dict[str, TransferTicket] = {}
         self._pending_lock = threading.Lock()
+        self._encryption_lock = threading.Lock()
 
         self._running = threading.Event()
         self._server_socket: Optional[socket.socket] = None
@@ -194,6 +198,15 @@ class TransferService:
         with self._pending_lock:
             self._pending.pop(request_id, None)
 
+    @property
+    def encryption_enabled(self) -> bool:
+        with self._encryption_lock:
+            return self._encryption_enabled
+
+    def set_encryption_enabled(self, enabled: bool) -> None:
+        with self._encryption_lock:
+            self._encryption_enabled = bool(enabled)
+
     def send_file(
         self,
         target_ip: str,
@@ -228,8 +241,15 @@ class TransferService:
                     cleanup_path.unlink()
             raise
 
-        nonce = random_nonce()
-        private_key, public_key = generate_dh_keypair()
+        with self._encryption_lock:
+            encrypting = self._encryption_enabled
+
+        nonce: Optional[bytes] = None
+        private_key: Optional[int] = None
+        public_key: Optional[int] = None
+        if encrypting:
+            nonce = random_nonce()
+            private_key, public_key = generate_dh_keypair()
         metadata = {
             "type": "transfer",
             "protocol": PROTOCOL_VERSION,
@@ -240,10 +260,12 @@ class TransferService:
             "sender_language": self.language,
             "version": __version__,
             "sha256": file_hash,
-            "nonce": encode_bytes(nonce),
-            "dh_public": encode_public(public_key),
             "content_type": content_type,
+            "encryption": "enabled" if encrypting else "disabled",
         }
+        if encrypting and nonce is not None and public_key is not None:
+            metadata["nonce"] = encode_bytes(nonce)
+            metadata["dh_public"] = encode_public(public_key)
         if archive_format:
             metadata["archive"] = archive_format
         if original_size is not None:
@@ -281,19 +303,23 @@ class TransferService:
                     # There should not be any extra data following the handshake response.
                     response_buffer = bytearray(remainder)
                     break
+                cipher: Optional[StreamCipher] = None
                 if response == "DECLINE":
                     return "declined", file_hash
                 if not response.startswith("ACCEPT"):
                     raise RuntimeError(f"unexpected response: {response}")
-                try:
-                    _, receiver_payload = response.split(" ", 1)
-                    receiver_public = decode_public(receiver_payload)
-                except Exception as exc:
-                    raise RuntimeError(
-                        "secure handshake failed: remote client may be outdated"
-                    ) from exc
-                session_key = derive_session_key(private_key, receiver_public, nonce)
-                cipher = StreamCipher(session_key, nonce)
+                if encrypting:
+                    try:
+                        _, receiver_payload = response.split(" ", 1)
+                        receiver_public = decode_public(receiver_payload)
+                    except Exception as exc:
+                        raise RuntimeError(
+                            "secure handshake failed: remote client may be outdated"
+                        ) from exc
+                    if private_key is None or nonce is None:
+                        raise RuntimeError("encryption parameters unavailable")
+                    session_key = derive_session_key(private_key, receiver_public, nonce)
+                    cipher = StreamCipher(session_key, nonce)
                 sock.settimeout(None)
                 # Once the handshake has succeeded, switch back to blocking mode for data transfer
                 bytes_sent = 0
@@ -306,8 +332,8 @@ class TransferService:
                         chunk = file_handle.read(BUFFER_SIZE)
                         if not chunk:
                             break
-                        encrypted = cipher.process(chunk)
-                        sock.sendall(memoryview(encrypted))
+                        outbound = cipher.process(chunk) if cipher else chunk
+                        sock.sendall(memoryview(outbound))
                         bytes_sent += len(chunk)
                         if progress_cb:
                             progress_cb(bytes_sent, file_size)
@@ -394,22 +420,48 @@ class TransferService:
             except (TypeError, ValueError):
                 original_size = None
 
-            if not file_hash or not nonce_encoded or not peer_public_encoded:
+            encryption_flag = metadata.get("encryption")
+            encrypted_transfer = True
+            if isinstance(encryption_flag, str):
+                encrypted_transfer = encryption_flag.lower() not in {"disabled", "off", "false", "0"}
+            elif isinstance(encryption_flag, bool):
+                encrypted_transfer = encryption_flag
+
+            with self._encryption_lock:
+                require_encryption = self._encryption_enabled
+
+            if not encrypted_transfer and require_encryption:
                 try:
                     _sendline(conn, "DECLINE")
                 except OSError:
                     pass
                 return
 
-            try:
-                nonce = decode_bytes(nonce_encoded)
-                peer_public = decode_public(peer_public_encoded)
-            except Exception:
+            if not file_hash:
                 try:
                     _sendline(conn, "DECLINE")
                 except OSError:
                     pass
                 return
+
+            nonce: Optional[bytes] = None
+            peer_public: Optional[int] = None
+            if encrypted_transfer:
+                if not nonce_encoded or not peer_public_encoded:
+                    try:
+                        _sendline(conn, "DECLINE")
+                    except OSError:
+                        pass
+                    return
+                try:
+                    nonce = decode_bytes(nonce_encoded)
+                    peer_public = decode_public(peer_public_encoded)
+                except Exception:
+                    try:
+                        _sendline(conn, "DECLINE")
+                    except OSError:
+                        pass
+                    return
 
             ticket = TransferTicket(
                 request_id=request_id,
@@ -425,6 +477,7 @@ class TransferService:
                 content_type=content_type,
                 archive_format=archive_format,
                 original_size=original_size,
+                encrypted=encrypted_transfer,
             )
             with self._pending_lock:
                 self._pending[request_id] = ticket
@@ -485,7 +538,7 @@ class TransferService:
                 self.remove_ticket(request_id)
                 return
 
-            if ticket.nonce is None or ticket.peer_public is None:
+            if ticket.encrypted and (ticket.nonce is None or ticket.peer_public is None):
                 ticket.status = "failed"
                 ticket.error = "missing encryption parameters"
                 self.remove_ticket(request_id)
@@ -501,13 +554,21 @@ class TransferService:
                 self.remove_ticket(request_id)
                 return
 
-            receiver_private, receiver_public = generate_dh_keypair()
-            session_key = derive_session_key(receiver_private, ticket.peer_public, ticket.nonce)
-            cipher = StreamCipher(session_key, ticket.nonce)
+            cipher: Optional[StreamCipher]
+            if ticket.encrypted:
+                receiver_private, receiver_public = generate_dh_keypair()
+                if ticket.peer_public is None or ticket.nonce is None:
+                    raise RuntimeError("missing encryption parameters")
+                session_key = derive_session_key(receiver_private, ticket.peer_public, ticket.nonce)
+                cipher = StreamCipher(session_key, ticket.nonce)
+                accept_payload = f"ACCEPT {encode_public(receiver_public)}"
+            else:
+                cipher = None
+                accept_payload = "ACCEPT"
 
             ticket.status = "receiving"
             try:
-                _sendline(conn, f"ACCEPT {encode_public(receiver_public)}")
+                _sendline(conn, accept_payload)
             except OSError as exc:
                 ticket.status = "failed"
                 ticket.error = f"send ack failed: {exc}"
@@ -559,7 +620,7 @@ class TransferService:
         dest_path: Path,
         expected_size: int,
         ticket: TransferTicket,
-        cipher: StreamCipher,
+        cipher: Optional[StreamCipher],
     ) -> None:
         bytes_remaining = expected_size
         hasher = hashlib.sha256()
@@ -569,7 +630,7 @@ class TransferService:
                 chunk = reader.read(chunk_size)
                 if not chunk:
                     raise ConnectionError("connection closed during transfer")
-                decrypted = cipher.process(chunk)
+                decrypted = cipher.process(chunk) if cipher else chunk
                 file_handle.write(decrypted)
                 hasher.update(decrypted)
                 bytes_remaining -= len(decrypted)

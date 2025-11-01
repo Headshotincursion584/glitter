@@ -44,12 +44,14 @@ class GlitterApp:
         language: str,
         transfer_port: Optional[int] = None,
         debug: bool = False,
+        encryption_enabled: bool = True,
     ) -> None:
         self.device_id = str(uuid.uuid4())
         self.device_name = device_name
         self.language = language
         self.default_download_dir = ensure_download_dir()
         self.debug = debug
+        self._encryption_enabled = encryption_enabled
 
         if isinstance(transfer_port, int) and 1 <= transfer_port <= 65535:
             preferred_port = transfer_port
@@ -75,6 +77,7 @@ class GlitterApp:
             on_cancelled_request=self._handle_request_cancelled,
             bind_port=bind_port,
             allow_ephemeral_fallback=allow_fallback,
+            encryption_enabled=self._encryption_enabled,
         )
 
     @property
@@ -84,6 +87,14 @@ class GlitterApp:
     @property
     def allows_ephemeral_fallback(self) -> bool:
         return self._allow_ephemeral_fallback
+
+    @property
+    def encryption_enabled(self) -> bool:
+        return self._encryption_enabled
+
+    def set_encryption_enabled(self, enabled: bool) -> None:
+        self._encryption_enabled = bool(enabled)
+        self._transfer_service.set_encryption_enabled(self._encryption_enabled)
 
     def change_transfer_port(self, new_port: int) -> int:
         if not (1 <= new_port <= 65535):
@@ -774,6 +785,10 @@ def settings_menu(app: GlitterApp, config: AppConfig, language: str) -> str:
         lang_code = config.language or language or "en"
         lang_name = LANGUAGES.get(lang_code, lang_code)
         device_display = config.device_name or app.device_name
+        encryption_label = get_message(
+            "settings_encryption_on" if app.encryption_enabled else "settings_encryption_off",
+            language,
+        )
         print(
             get_message(
                 "settings_header",
@@ -782,6 +797,7 @@ def settings_menu(app: GlitterApp, config: AppConfig, language: str) -> str:
                 language_code=lang_code,
                 device=device_display,
                 port=app.transfer_port,
+                encryption=encryption_label,
             )
         )
         print(get_message("settings_options", language))
@@ -876,6 +892,50 @@ def settings_menu(app: GlitterApp, config: AppConfig, language: str) -> str:
             else:
                 print(get_message("operation_cancelled", language))
         elif choice == "5":
+            current_label = get_message(
+                "settings_encryption_on" if app.encryption_enabled else "settings_encryption_off",
+                language,
+            )
+            try:
+                answer = input(
+                    get_message(
+                        "settings_encryption_prompt",
+                        language,
+                        state=current_label,
+                    )
+                ).strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                print()
+                print(get_message("operation_cancelled", language))
+                continue
+            if not answer:
+                print(get_message("operation_cancelled", language))
+                continue
+            if answer in {"y", "yes", "true", "on", "1", "是", "shi"}:
+                desired = True
+            elif answer in {"n", "no", "false", "off", "0", "否", "fou"}:
+                desired = False
+            else:
+                print(get_message("invalid_choice", language))
+                continue
+            if desired == app.encryption_enabled:
+                print(get_message("operation_cancelled", language))
+                continue
+            app.set_encryption_enabled(desired)
+            config.encryption_enabled = desired
+            save_config(config)
+            updated_label = get_message(
+                "settings_encryption_on" if desired else "settings_encryption_off",
+                language,
+            )
+            print(
+                get_message(
+                    "settings_encryption_updated",
+                    language,
+                    state=updated_label,
+                )
+            )
+        elif choice == "6":
             return language
         else:
             print(get_message("invalid_choice", language))
@@ -939,6 +999,7 @@ def run_cli() -> int:
         language=language,
         transfer_port=config.transfer_port,
         debug=debug,
+        encryption_enabled=config.encryption_enabled,
     )
     print(get_message("welcome", language))
     print(get_message("current_version", language, version=__version__))

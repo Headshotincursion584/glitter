@@ -10,7 +10,7 @@ Glitter is a cross‑platform, terminal‑based tool for sending files over a lo
 - Directory transfer: send entire folders (auto-zipped, zero compression)
 - Transfer progress and live throughput (e.g. 1.2 MB/s)
 - Transfer history (JSONL) stored under user home
-- Settings for language & device name, clear history
+- Settings for language & device name & encryption, clear history
 
 Chinese docs: see [README.zh-CN.md](./docs/README.zh-CN.md).
 
@@ -51,14 +51,14 @@ On first run, Glitter asks for language and device name and saves them. Next run
 - [3] Incoming requests: Review transfer requests; Accept/Decline and choose a save directory
 - [4] Check updates: Open‑source repo link
 - [5] History: Show the latest transfer records
-- [6] Settings: Change language/device name/port, clear history
+- [6] Settings: Change language/device name/port/encryption, clear history
 - [7] Quit: Exit the program
 
 - Firewall: Allow UDP 45845 and TCP 45846 (transfer port) for the app if discovery/transfer is blocked.
 
 ## Files & Persistence
 
-- Config: `~/.glitter/config.json` (language, device name, transfer port)
+- Config: `~/.glitter/config.json` (language, device name, transfer port, encryption)
 - History: `~/.glitter/history.jsonl` (one JSON per line)
 - Default download folder: `~/Downloads/GlitterDownloads` on Windows, `~/GlitterDownloads` elsewhere
 

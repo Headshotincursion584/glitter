@@ -19,6 +19,7 @@ class AppConfig:
     language: Optional[str] = None
     device_name: Optional[str] = None
     transfer_port: Optional[int] = None
+    encryption_enabled: bool = True
 
 
 def load_config() -> AppConfig:
@@ -32,10 +33,13 @@ def load_config() -> AppConfig:
         return AppConfig()
     port_value = data.get("transfer_port")
     transfer_port = port_value if isinstance(port_value, int) and 1 <= port_value <= 65535 else None
+    encryption_raw = data.get("encryption_enabled")
+    encryption_enabled = encryption_raw if isinstance(encryption_raw, bool) else True
     return AppConfig(
         language=data.get("language"),
         device_name=data.get("device_name"),
         transfer_port=transfer_port,
+        encryption_enabled=encryption_enabled,
     )
 
 
