@@ -40,9 +40,11 @@ On first run, Glitter asks for language and device name and saves them. Next run
 ### PyPI
 
 [Released](https://pypi.org/project/glitter-cli/), recommended to install and run via [pipx](https://pipx.pypa.io/stable/):
- - apt install pipx  # Debian/Ubuntu
- - pipx install glitter-cli
- - glitter
+
+- `apt install pipx`  # Debian/Ubuntu
+- `pipx install glitter-cli`
+- `glitter`
+  - `pipx upgrade glitter-cli`  # to update
 
 ### GitHub
 

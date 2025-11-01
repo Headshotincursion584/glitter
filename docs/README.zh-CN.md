@@ -40,9 +40,11 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 ### PyPI
 
 [发布](https://pypi.org/project/glitter-cli/)，推荐使用 [pipx](https://pipx.pypa.io/stable/) 安装与运行：
- - apt install pipx  # Debian/Ubuntu
- - pipx install glitter-cli
- - glitter
+
+- `apt install pipx`  # Debian/Ubuntu
+- `pipx install glitter-cli`
+- `glitter`
+  - `pipx upgrade glitter-cli`  # 后续更新
 
 ### GitHub
 
