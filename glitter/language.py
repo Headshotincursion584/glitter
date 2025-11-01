@@ -1,0 +1,143 @@
+"""
+Language support primitives for Glitter CLI prompts.
+"""
+
+from __future__ import annotations
+
+from typing import Dict
+
+# Supported interface languages
+LANGUAGES: Dict[str, str] = {
+    "en": "English",
+    "zh": "中文",
+}
+
+MESSAGES: Dict[str, Dict[str, str]] = {
+    "en": {
+        "welcome": "Welcome to Glitter — LAN file transfer.",
+        "select_language": "Select interface language:",
+        "prompt_language_choice": "Enter language code [{default}]: ",
+        "prompt_device_name": "Enter device name [{default}]: ",
+        "menu_header": "Available actions:",
+        "menu_options": "[1] List peers  [2] Send file  [3] Incoming requests  [4] Check updates  [5] History  [6] Settings  [7] Quit",
+        "menu_pending": " ({count} pending)",
+        "prompt_choice": "Choose an option: ",
+        "no_peers": "No peers online right now.",
+        "peer_entry": "{index}. {name} ({ip}) — last seen {seconds}s ago — v{version}",
+        "peer_version_warning": "! Version mismatch detected (remote {version}, local {current}). Transfers may be unreliable; please update.",
+        "prompt_peer_index": "Select peer number: ",
+        "invalid_choice": "Invalid choice. Try again.",
+        "prompt_file_path": "Enter file path to send: ",
+        "file_not_found": "File not found or not a regular file.",
+        "sending": "Sending '{filename}' to {name} ({ip})...",
+        "send_success": "Transfer completed successfully.",
+        "send_declined": "Transfer declined by remote peer.",
+        "send_cancelled": "Transfer cancelled.",
+        "send_failed": "Transfer failed: {error}",
+        "pending_header": "Pending incoming transfers:",
+        "no_pending": "No pending transfer requests.",
+        "pending_entry": "{index}. {filename} ({size} bytes) from {name}",
+        "pending_debug_suffix": " [id: {request_id}]",
+        "prompt_pending_choice": "Select request number to act on (or press Enter to go back): ",
+        "prompt_accept": "[A]ccept, [D]ecline? ",
+        "prompt_save_dir": "Enter target directory (leave empty for default '{default}'): ",
+        "waiting_recipient": "Waiting for the recipient to confirm...",
+        "cancel_hint": "Press Ctrl+C to cancel the send and return to the menu.",
+        "receive_started": "Receiving '{filename}'...",
+        "receive_done": "File saved to {path}",
+        "receive_failed": "Transfer failed: {error}",
+        "receive_declined": "Declined transfer request.",
+        "peer_timeout": "Peer list updated.",
+        "goodbye": "Goodbye!",
+        "incoming_notice": "Incoming file '{filename}' ({size} bytes) from {name}. Handle via option [3].",
+        "waiting_for_decision": "Waiting for user decision...",
+        "incoming_cancelled": "Sender cancelled the transfer '{filename}' from {name}.",
+        "operation_cancelled": "Operation cancelled.",
+        "progress_line": "Transferred {transferred} / {total} ({rate}/s)",
+        "version_mismatch_send": "Note: remote Glitter version {version} differs from your {current}. Proceeding anyway.",
+        "incoming_version_warning": "! Sender version {version} differs from your {current}.",
+        "current_version": "You are running Glitter {version}.",
+        "updates_info": "Project home & updates: https://github.com/scarletkc/glitter",
+        "history_header": "Recent transfers:",
+        "history_empty": "No transfer history recorded yet.",
+        "history_entry_send": "[SEND] {time} → {name} ({ip}) — {filename} ({size})",
+        "history_entry_receive": "[RECV] {time} ← {name} ({ip}) — {filename} ({size}) saved to {path}",
+        "history_entry_failed": "[{direction}] {time} with {name} ({ip}) — {filename} failed: {status}",
+        "settings_header": "Settings — language: {language_name} ({language_code}), device: {device}",
+        "settings_options": "[1] Change language  [2] Change device name  [3] Clear history  [4] Back",
+        "settings_prompt": "Choose a settings option: ",
+        "settings_language_updated": "Language updated to {language_name}.",
+        "settings_device_updated": "Device name updated to {name}.",
+        "settings_clear_confirm": "Clear all transfer history? [y/N]: ",
+        "settings_history_cleared": "Transfer history cleared.",
+    },
+    "zh": {
+        "welcome": "欢迎使用 Glitter 局域网文件传输。",
+        "select_language": "请选择界面语言：",
+        "prompt_language_choice": "输入语言代码 [{default}]：",
+        "prompt_device_name": "请输入设备名称 [{default}]：",
+        "menu_header": "可用操作：",
+        "menu_options": "[1] 查看在线客户端  [2] 发送文件  [3] 待处理请求  [4] 查看更新  [5] 传输记录  [6] 设置  [7] 退出",
+        "menu_pending": "（{count} 个待处理）",
+        "prompt_choice": "请选择操作：",
+        "no_peers": "当前没有在线客户端。",
+        "peer_entry": "{index}. {name}（{ip}）— 最近 {seconds} 秒前在线 — v{version}",
+        "peer_version_warning": "! 版本不一致（对方 {version}，本地 {current}），传输可能异常，请尽快更新。",
+        "prompt_peer_index": "请选择客户端编号：",
+        "invalid_choice": "输入无效，请重试。",
+        "prompt_file_path": "请输入要发送的文件路径：",
+        "file_not_found": "文件不存在或不是常规文件。",
+        "sending": "正在向 {name}（{ip}）发送“{filename}”...",
+        "send_success": "文件发送完成。",
+        "send_declined": "对方已拒绝传输。",
+        "send_cancelled": "已取消本次传输。",
+        "send_failed": "传输失败：{error}",
+        "pending_header": "待处理的接收请求：",
+        "no_pending": "暂无待处理请求。",
+        "pending_entry": "{index}. {filename}（{size} 字节），来自 {name}",
+        "pending_debug_suffix": " [请求ID: {request_id}]",
+        "prompt_pending_choice": "选择要处理的请求编号（直接回车返回）：",
+        "prompt_accept": "接受[A] 还是 拒绝[D]？",
+        "prompt_save_dir": "输入保存目录（留空则使用默认 '{default}'）：",
+        "waiting_recipient": "等待对方确认中...",
+        "cancel_hint": "发送过程中按 Ctrl+C 可取消并返回菜单。",
+        "receive_started": "开始接收“{filename}”...",
+        "receive_done": "文件已保存到 {path}",
+        "receive_failed": "接收失败：{error}",
+        "receive_declined": "已拒绝该传输请求。",
+        "peer_timeout": "已更新客户端列表。",
+        "goodbye": "再见！",
+        "incoming_notice": "收到来自 {name} 的文件“{filename}”（{size} 字节）。请通过操作 [3] 处理。",
+        "waiting_for_decision": "等待用户确认...",
+        "incoming_cancelled": "对方已取消来自 {name} 的文件“{filename}”传输。",
+        "operation_cancelled": "操作已取消。",
+        "progress_line": "已传输 {transferred} / {total}（{rate}/秒）",
+        "version_mismatch_send": "提示：对方 Glitter 版本 {version} 与本地 {current} 不一致，将继续尝试传输。",
+        "incoming_version_warning": "! 对方版本 {version} 与本地 {current} 不一致，请注意。",
+        "current_version": "当前运行 Glitter {version}。",
+        "updates_info": "项目与更新地址：https://github.com/scarletkc/glitter",
+        "history_header": "近期传输记录：",
+        "history_empty": "暂无传输记录。",
+        "history_entry_send": "【发送】{time} → {name}（{ip}）— {filename}（{size}）",
+        "history_entry_receive": "【接收】{time} ← {name}（{ip}）— {filename}（{size}），保存到 {path}",
+        "history_entry_failed": "【{direction}】{time} 与 {name}（{ip}）— {filename} 失败：{status}",
+        "settings_header": "设置 — 当前语言：{language_name} ({language_code})，设备名称：{device}",
+        "settings_options": "[1] 更改语言  [2] 更改设备名称  [3] 清空传输记录  [4] 返回",
+        "settings_prompt": "请选择设置操作：",
+        "settings_language_updated": "语言已切换为 {language_name}。",
+        "settings_device_updated": "设备名称已更新为 {name}。",
+        "settings_clear_confirm": "确定清空全部传输记录？[y/N]：",
+        "settings_history_cleared": "传输记录已清空。",
+    },
+}
+
+
+def get_message(key: str, language: str, **kwargs: object) -> str:
+    """
+    Retrieve a formatted message for the requested language.
+    Falls back to English when the message or language is missing.
+    """
+
+    lang_messages = MESSAGES.get(language, MESSAGES["en"])
+    template = lang_messages.get(key, MESSAGES["en"].get(key, key))
+    return template.format(**kwargs)

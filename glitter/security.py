@@ -1,0 +1,114 @@
+"""
+Security helpers: Diffie-Hellman key exchange, stream cipher, and hashing.
+"""
+
+from __future__ import annotations
+
+import base64
+import hashlib
+import os
+import secrets
+from pathlib import Path
+from typing import Tuple
+
+# 2048-bit MODP Group (RFC 3526)
+DH_PRIME = int(
+    "FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E08"
+    "8A67CC74020BBEA63B139B22514A08798E3404DDEF9519B3CD"
+    "3A431B302B0A6DF25F14374FE1356D6D51C245E485B576625E7EC6F44"
+    "C42E9A637ED6B0BFF5CB6F406B7EDEE386BFB5A899FA5AE9F24117C4B1"
+    "FE649286651ECE65381FFFFFFFFFFFFFFFF",
+    16,
+)
+DH_GENERATOR = 2
+
+
+def generate_dh_keypair() -> Tuple[int, int]:
+    """Return a Diffie-Hellman private/public key pair."""
+
+    private = secrets.randbelow(DH_PRIME - 2) + 2
+    public = pow(DH_GENERATOR, private, DH_PRIME)
+    return private, public
+
+
+def derive_session_key(private_key: int, peer_public: int, nonce: bytes) -> bytes:
+    """Derive a shared session key from DH exchange and a nonce."""
+
+    shared = pow(peer_public, private_key, DH_PRIME)
+    shared_bytes = _int_to_bytes(shared)
+    return hashlib.sha256(shared_bytes + nonce).digest()
+
+
+def encode_public(value: int) -> str:
+    """Safe base64 encoding for DH public numbers."""
+
+    return base64.urlsafe_b64encode(_int_to_bytes(value)).decode("ascii")
+
+
+def decode_public(encoded: str) -> int:
+    """Decode a base64 DH public number."""
+
+    data = base64.urlsafe_b64decode(encoded.encode("ascii"))
+    return int.from_bytes(data, "big")
+
+
+def encode_bytes(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).decode("ascii")
+
+
+def decode_bytes(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value.encode("ascii"))
+
+
+def compute_file_sha256(path: Path) -> str:
+    """Return the SHA-256 hex digest of a file."""
+
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        while True:
+            chunk = handle.read(128 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+class StreamCipher:
+    """
+    Simple SHA-256 counter-based stream cipher for encrypting/decrypting bytes.
+    """
+
+    def __init__(self, key: bytes, nonce: bytes) -> None:
+        self._key = key
+        self._nonce = nonce
+        self._counter = 0
+        self._buffer = b""
+
+    def process(self, data: bytes) -> bytes:
+        if not data:
+            return b""
+        output = bytearray(len(data))
+        offset = 0
+        while offset < len(data):
+            if not self._buffer:
+                block = hashlib.sha256(
+                    self._key + self._nonce + self._counter.to_bytes(8, "big")
+                ).digest()
+                self._counter += 1
+                self._buffer = block
+            take = min(len(self._buffer), len(data) - offset)
+            for i in range(take):
+                output[offset + i] = data[offset + i] ^ self._buffer[i]
+            self._buffer = self._buffer[take:]
+            offset += take
+        return bytes(output)
+
+
+def random_nonce(size: int = 16) -> bytes:
+    return os.urandom(size)
+
+
+def _int_to_bytes(value: int) -> bytes:
+    length = (value.bit_length() + 7) // 8 or 1
+    return value.to_bytes(length, "big")
+
