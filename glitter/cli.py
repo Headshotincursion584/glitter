@@ -397,6 +397,7 @@ class GlitterApp:
             filename=display_name,
             size=ticket.filesize,
             name=ticket.sender_name,
+            ip=ticket.sender_ip,
         )
         self.ui.blank()
         self.ui.print(message)
@@ -633,6 +634,19 @@ def send_file_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
                 break
         manual_target = parse_manual_target(choice)
         if manual_target:
+            normalized_ip = manual_target.get("normalized_ip")
+            if peers and isinstance(normalized_ip, str):
+                matched_peer = next(
+                    (
+                        candidate
+                        for candidate in peers
+                        if candidate.ip == normalized_ip
+                    ),
+                    None,
+                )
+                if matched_peer:
+                    selected_peer = matched_peer
+                    break
             normalized_ip = manual_target["ip"]
             cached_peer_id = app.cached_peer_id_for_ip(normalized_ip)
             peer_identifier = cached_peer_id or f"manual:{normalized_ip}:{manual_target['port']}"
@@ -890,6 +904,7 @@ def handle_requests_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
             filename=display_name,
             size=ticket.filesize,
             name=ticket.sender_name,
+            ip=ticket.sender_ip,
         )
         if app.debug:
             debug_suffix = render_message(
