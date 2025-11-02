@@ -47,6 +47,15 @@ On first run, Glitter asks for language and device name and saves them. Next run
 - `glitter`
   - `pipx upgrade glitter-cli`  # to update
 
+<details>
+  <summary>Alternative: install via pip (not recommended)</summary>
+
+- `pip install glitter-cli`
+- `glitter`
+  - `pip install --upgrade glitter-cli`  # to update
+  
+</details>
+
 ### GitHub
 
 Requirements: [Python 3.9+](https://www.python.org/downloads/) and install [deps](./requirements.txt)

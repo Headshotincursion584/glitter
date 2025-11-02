@@ -46,6 +46,15 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 - `pipx install glitter-cli`
 - `glitter`
   - `pipx upgrade glitter-cli`  # 后续更新
+  
+<details>
+  <summary>另一种方法：通过 pip 安装（不推荐）</summary>
+
+- `pip install glitter-cli`
+- `glitter`
+  - `pip install --upgrade glitter-cli`  # 后续更新
+  
+</details>
 
 ### GitHub
 
