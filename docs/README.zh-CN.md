@@ -12,6 +12,8 @@ Glitter 是一个跨平台、终端界面的局域网文件互传工具，自动
 - 历史记录保存到用户目录（JSONL）
 - 设置语言与设备名，支持清空历史和加密
 
+[Python 3.9+](https://www.python.org/downloads/)
+
 英文版文档请见仓库根目录 [README.md](https://github.com/scarletkc/glitter/blob/main/README.md)。
 
 ## 为什么选择 Glitter？
@@ -62,7 +64,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 - Windows二进制文件： [exe](https://github.com/scarletkc/glitter/releases)
 
-要求：[Python 3.9+](https://www.python.org/downloads/)，并安装[依赖](../requirements.txt)
+要求：安装[依赖](https://github.com/scarletkc/glitter/blob/main/requirements.txt)
 
 - Linux/macOS/WSL/Windows (PowerShell/CMD) 运行：
   - `git clone https://github.com/scarletkc/glitter.git`

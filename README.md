@@ -11,6 +11,8 @@ Glitter is a cross‑platform, terminal‑based tool for sending files over a lo
 - Transfer progress and live throughput (e.g. 1.2 MB/s)
 - Transfer history (JSONL) stored under user home
 - Settings for language & device name & encryption, clear history
+  
+[Python 3.9+](https://www.python.org/downloads/)
 
 Chinese docs: see [README.zh-CN.md](https://github.com/scarletkc/glitter/blob/main/docs/README.zh-CN.md).
 
@@ -62,7 +64,7 @@ On first run, Glitter asks for language and device name and saves them. Next run
 
 - For Windows: [exe](https://github.com/scarletkc/glitter/releases)
 
-Requirements: [Python 3.9+](https://www.python.org/downloads/) and install [deps](./requirements.txt)
+Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requirements.txt)
 
 - Linux/macOS/WSL/Windows (PowerShell/CMD) Run: 
   - `git clone https://github.com/scarletkc/glitter.git`
