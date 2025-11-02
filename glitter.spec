@@ -1,4 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
+import sys
+
 from PyInstaller.utils.hooks import collect_submodules
 from PyInstaller.utils.win32.versioninfo import (
     FixedFileInfo,
@@ -9,6 +12,10 @@ from PyInstaller.utils.win32.versioninfo import (
     VarStruct,
     VSVersionInfo,
 )
+
+ROOT_DIR = Path(__file__).resolve().parent
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 from glitter import __version__ as GLITTER_VERSION
 
