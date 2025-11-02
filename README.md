@@ -38,6 +38,8 @@ Glitter provides a **simple, terminal-based** alternative to GUI tools and compl
 
 On first run, Glitter asks for language and device name and saves them. Next runs go straight to the main menu.
 
+- Firewall: Allow UDP 45845 and TCP 45846 (transfer port) for the app if discovery/transfer is blocked.
+
 ### PyPI
 
 [Released](https://pypi.org/project/glitter-cli/), recommended to install and run via [pipx](https://pipx.pypa.io/stable/):
@@ -58,6 +60,8 @@ On first run, Glitter asks for language and device name and saves them. Next run
 
 ### GitHub
 
+- For Windows: [exe](https://github.com/scarletkc/glitter/releases)
+
 Requirements: [Python 3.9+](https://www.python.org/downloads/) and install [deps](./requirements.txt)
 
 - Linux/macOS/WSL/Windows (PowerShell/CMD) Run: 
@@ -74,8 +78,6 @@ Requirements: [Python 3.9+](https://www.python.org/downloads/) and install [deps
 - [5] History: Show the latest transfer records
 - [6] Settings: Change language/device name/port/encryption, clear history
 - [7] Quit: Exit the program
-
-- Firewall: Allow UDP 45845 and TCP 45846 (transfer port) for the app if discovery/transfer is blocked.
 
 ## Files & Persistence
 

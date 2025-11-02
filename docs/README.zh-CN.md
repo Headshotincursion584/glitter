@@ -38,6 +38,8 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 首次启动会提示选择语言与设备名称并保存。之后启动将直接进入主菜单。
 
+- 防火墙：若发现/传输异常，请放行 UDP 45845 以及 TCP 45846（传输端口）。
+
 ### PyPI
 
 [发布](https://pypi.org/project/glitter-cli/)，推荐使用 [pipx](https://pipx.pypa.io/stable/) 安装与运行：
@@ -58,6 +60,8 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 ### GitHub
 
+- Windows二进制文件： [exe](https://github.com/scarletkc/glitter/releases)
+
 要求：[Python 3.9+](https://www.python.org/downloads/)，并安装[依赖](../requirements.txt)
 
 - Linux/macOS/WSL/Windows (PowerShell/CMD) 运行：
@@ -74,8 +78,6 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 - [5] 传输记录：查看最近记录
 - [6] 设置：修改语言/设备名/端口/加密，清空历史
 - [7] 退出
-
-- 防火墙：若发现/传输异常，请放行 UDP 45845 以及 TCP 45846（传输端口）。
 
 ## 文件与持久化
 
