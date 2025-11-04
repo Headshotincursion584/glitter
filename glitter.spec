@@ -47,7 +47,7 @@ VERSION_INFO = VSVersionInfo(
                     "040904B0",
                     [
                         StringStruct("CompanyName", "ScarletKc"),
-                        StringStruct("FileDescription", "Simple LAN File Transfer CLI."),
+                        StringStruct("FileDescription", "Simple LAN File Transfer CLI"),
                         StringStruct("FileVersion", GLITTER_VERSION),
                         StringStruct("InternalName", "glitter"),
                         StringStruct("LegalCopyright", "Copyright (C) ScarletKc"),
@@ -64,6 +64,8 @@ VERSION_INFO = VSVersionInfo(
 
 hiddenimports = []
 hiddenimports += collect_submodules('cryptography')
+
+ICON_PATH = str(ROOT_DIR / "assets" / "glitter.ico")
 
 
 a = Analysis(
@@ -101,4 +103,5 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     version=VERSION_INFO,
+    icon=ICON_PATH,
 )

@@ -1458,6 +1458,7 @@ def run_cli() -> int:
         trust_store=trust_store,
         ui=ui,
     )
+    show_message(ui, "icon", language)
     show_message(ui, "welcome", language)
     show_message(ui, "current_version", language, version=__version__)
     try:
