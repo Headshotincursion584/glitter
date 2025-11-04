@@ -248,6 +248,7 @@ TONE_STYLES: Dict[str, str] = {
 
 MESSAGE_TONES: Dict[str, str] = {
     "welcome": "",
+    "icon": "",
     "select_language": "",
     "menu_header": "",
     "menu_options": "",
