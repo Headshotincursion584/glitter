@@ -21,7 +21,7 @@ from rich.console import Console, RenderableType
 from rich.text import Text
 
 from . import __version__
-from .config import AppConfig, load_config, save_config
+from .config import AppConfig, load_config, resolve_download_dir, save_config
 from .discovery import DiscoveryService, PeerInfo
 from .history import (
     HistoryRecord,
@@ -217,6 +217,7 @@ class GlitterApp:
         device_id: str,
         device_name: str,
         language: str,
+        default_download_dir: Optional[Path] = None,
         transfer_port: Optional[int] = None,
         debug: bool = False,
         encryption_enabled: bool = True,
@@ -227,7 +228,7 @@ class GlitterApp:
         self.device_id = device_id
         self.device_name = device_name
         self.language = language
-        self.default_download_dir = ensure_download_dir()
+        self.default_download_dir = self._prepare_download_dir(default_download_dir)
         self.debug = debug
         self._encryption_enabled = encryption_enabled
         self.ui = ui or TerminalUI()
@@ -250,6 +251,25 @@ class GlitterApp:
         self._incoming_lock = threading.Lock()
         self._incoming_counter = 0
         self._history_lock = threading.Lock()
+
+    def _prepare_download_dir(self, directory: Optional[Path]) -> Path:
+        if directory is None:
+            return ensure_download_dir()
+        try:
+            directory.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            return ensure_download_dir()
+        return directory
+
+    def set_default_download_dir(self, directory: Path) -> Path:
+        directory = directory.expanduser()
+        directory.mkdir(parents=True, exist_ok=True)
+        self.default_download_dir = directory
+        return directory
+
+    def reset_default_download_dir(self) -> Path:
+        self.default_download_dir = ensure_download_dir()
+        return self.default_download_dir
 
     def _create_transfer_service(self, bind_port: int, allow_fallback: bool) -> TransferService:
         return TransferService(
@@ -404,6 +424,7 @@ class GlitterApp:
 
     def accept_request(self, request_id: str, directory: Path) -> Optional[TransferTicket]:
         directory = directory.expanduser()
+        directory.mkdir(parents=True, exist_ok=True)
         return self._transfer_service.accept_request(request_id, directory)
 
     def decline_request(self, request_id: str) -> bool:
@@ -1395,6 +1416,56 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
             save_config(config)
             ui.print(render_message("settings_port_updated", language, port=actual_port))
         elif choice == "4":
+            current_dir = app.default_download_dir
+            try:
+                new_dir = ui.input(
+                    render_message(
+                        "settings_download_dir_prompt",
+                        language,
+                        current=str(current_dir),
+                    )
+                ).strip()
+            except (KeyboardInterrupt, EOFError):
+                ui.blank()
+                show_message(ui, "operation_cancelled", language)
+                continue
+            if not new_dir:
+                path = app.reset_default_download_dir()
+                config.download_dir = None
+                save_config(config)
+                ui.print(
+                    render_message(
+                        "settings_download_dir_reset",
+                        language,
+                        path=str(path),
+                    )
+                )
+                continue
+            candidate = Path(new_dir).expanduser()
+            if not candidate.is_absolute():
+                show_message(ui, "settings_download_dir_invalid", language)
+                continue
+            try:
+                updated = app.set_default_download_dir(candidate)
+            except OSError as exc:
+                ui.print(
+                    render_message(
+                        "settings_download_dir_failed",
+                        language,
+                        error=str(exc),
+                    )
+                )
+                continue
+            config.download_dir = str(updated)
+            save_config(config)
+            ui.print(
+                render_message(
+                    "settings_download_dir_updated",
+                    language,
+                    path=str(updated),
+                )
+            )
+        elif choice == "5":
             try:
                 confirm = ui.input(
                     render_message("settings_clear_confirm", language)
@@ -1408,7 +1479,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                 show_message(ui, "settings_history_cleared", language)
             else:
                 show_message(ui, "operation_cancelled", language)
-        elif choice == "5":
+        elif choice == "6":
             current_label = get_message(
                 "settings_encryption_on" if app.encryption_enabled else "settings_encryption_off",
                 language,
@@ -1452,7 +1523,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                     state=updated_label,
                 )
             )
-        elif choice == "6":
+        elif choice == "7":
             try:
                 confirm = ui.input(
                     render_message("settings_trust_clear_confirm", language)
@@ -1468,7 +1539,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                     show_message(ui, "operation_cancelled", language)
             else:
                 show_message(ui, "operation_cancelled", language)
-        elif choice == "7":
+        elif choice == "8":
             return language
         else:
             show_message(ui, "invalid_choice", language)
@@ -1535,11 +1606,13 @@ def initialize_application(debug: bool) -> tuple[GlitterApp, AppConfig, Terminal
     identity_public = identity_public_bytes(identity_private)
 
     trust_store = TrustedPeerStore()
+    download_dir = resolve_download_dir(config)
 
     app = GlitterApp(
         device_id=config.device_id or str(uuid.uuid4()),
         device_name=config.device_name or default_device_name(),
         language=language,
+        default_download_dir=download_dir,
         transfer_port=config.transfer_port,
         debug=debug,
         encryption_enabled=config.encryption_enabled,

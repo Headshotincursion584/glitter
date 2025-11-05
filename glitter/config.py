@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Optional
 
 from .history import HISTORY_DIR
+from .utils import ensure_download_dir
 
 CONFIG_FILE = HISTORY_DIR / "config.json"
 
@@ -22,6 +23,7 @@ class AppConfig:
     encryption_enabled: bool = True
     device_id: Optional[str] = None
     identity_private_key: Optional[str] = None
+    download_dir: Optional[str] = None
 
 
 def load_config() -> AppConfig:
@@ -45,6 +47,20 @@ def load_config() -> AppConfig:
     if not isinstance(identity_key, str) or not identity_key.strip():
         identity_key = None
 
+    download_raw = data.get("download_dir")
+    download_dir: Optional[str]
+    if isinstance(download_raw, str) and download_raw.strip():
+        try:
+            expanded = Path(download_raw).expanduser()
+            if not expanded.is_absolute():
+                expanded = Path.home() / expanded
+        except Exception:  # noqa: BLE001
+            download_dir = None
+        else:
+            download_dir = str(expanded)
+    else:
+        download_dir = None
+
     return AppConfig(
         language=data.get("language"),
         device_name=data.get("device_name"),
@@ -52,6 +68,7 @@ def load_config() -> AppConfig:
         encryption_enabled=encryption_enabled,
         device_id=device_id,
         identity_private_key=identity_key,
+        download_dir=download_dir,
     )
 
 
@@ -60,3 +77,24 @@ def save_config(config: AppConfig) -> None:
     payload = asdict(config)
     with CONFIG_FILE.open("w", encoding="utf-8") as handle:
         json.dump(payload, handle, ensure_ascii=False, indent=2)
+
+
+def resolve_download_dir(config: AppConfig) -> Path:
+    """Return the effective download directory, creating it if necessary."""
+
+    candidate = config.download_dir
+    if candidate:
+        try:
+            path = Path(candidate).expanduser()
+            if not path.is_absolute():
+                path = Path.home() / path
+        except Exception:  # noqa: BLE001
+            config.download_dir = None
+            return ensure_download_dir()
+        try:
+            path.mkdir(parents=True, exist_ok=True)
+        except OSError:
+            config.download_dir = None
+            return ensure_download_dir()
+        return path
+    return ensure_download_dir()
