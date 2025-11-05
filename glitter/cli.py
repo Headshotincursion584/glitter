@@ -4,6 +4,7 @@ Interactive CLI for the Glitter LAN file transfer tool.
 
 from __future__ import annotations
 
+import argparse
 import ipaddress
 import os
 import re
@@ -30,7 +31,7 @@ from .history import (
     load_records,
     now_iso,
 )
-from .language import LANGUAGES, get_message, render_message
+from .language import LANGUAGES, MESSAGES, get_message, render_message
 from .transfer import (
     DEFAULT_TRANSFER_PORT,
     FingerprintMismatchError,
@@ -544,69 +545,82 @@ def list_peers_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
             )
 
 
-def send_file_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
-    peers = app.list_peers()
-    default_port = app.transfer_port
-    if peers:
-        list_peers_cli(ui, app, language)
-    else:
-        show_message(ui, "no_peers", language)
-        show_message(ui, "manual_target_hint", language)
-    ui.blank()
+class LocalizedArgumentParser(argparse.ArgumentParser):
+    """ArgumentParser that uses localized usage and error messages."""
 
-    def parse_manual_target(raw: str) -> Optional[dict[str, object]]:
-        """Validate manual IPv4/IPv6 input and optional port."""
-        text = raw.strip()
-        if not text:
+    def __init__(self, *args, **kwargs) -> None:
+        self._messages = kwargs.pop("messages", {})
+        super().__init__(*args, **kwargs)
+
+    def _render_usage(self) -> Optional[str]:
+        template = self.usage or self._messages.get("cli_usage")
+        if not template:
             return None
-        port = default_port
-        normalized_ip: Optional[str] = None
-        if text.startswith("["):
-            closing = text.find("]")
-            if closing == -1:
-                return None
-            host_part = text[1:closing].strip()
-            remainder = text[closing + 1 :].strip()
-            if remainder:
-                if not remainder.startswith(":"):
-                    return None
-                port_text = remainder[1:].strip()
-                if not port_text.isdigit():
-                    return None
-                port = int(port_text)
+        if "%(prog)s" in template:
             try:
-                normalized_ip = ipaddress.ip_address(host_part).compressed
-            except ValueError:
-                return None
-            if not (1 <= port <= 65535):
-                return None
-            return {
-                "ip": normalized_ip,
-                "port": port,
-                "display": text,
-                "normalized_ip": normalized_ip,
-            }
+                body = template % {"prog": self.prog}
+            except Exception:  # noqa: BLE001
+                body = template
+        else:
+            try:
+                body = template.format(prog=self.prog)
+            except Exception:  # noqa: BLE001
+                body = template
+        prefix = self._messages.get("cli_usage_prefix")
+        if prefix:
+            return f"{prefix} {body}"
+        return body
 
-        host_candidate = text
-        if ":" in text:
-            possible_host, possible_port = text.rsplit(":", 1)
-            possible_host = possible_host.strip()
-            possible_port = possible_port.strip()
-            if possible_port.isdigit():
-                port_candidate = int(possible_port)
-                if not (1 <= port_candidate <= 65535):
-                    return None
-                try:
-                    normalized_candidate = ipaddress.ip_address(possible_host).compressed
-                except ValueError:
-                    pass
-                else:
-                    host_candidate = possible_host
-                    port = port_candidate
-                    normalized_ip = normalized_candidate
-        host_candidate = host_candidate.strip()
+    def format_usage(self) -> str:
+        rendered = self._render_usage()
+        if rendered is not None:
+            if not rendered.endswith("\n"):
+                rendered += "\n"
+            return rendered
+        return super().format_usage()
+
+    def print_usage(self, file=None) -> None:
+        if file is None:
+            file = sys.stderr
+        self._print_message(self.format_usage(), file)
+
+    def format_help(self) -> str:
+        help_text = super().format_help()
+        prefix = self._messages.get("cli_usage_prefix")
+        if prefix and prefix != "usage:":
+            help_text = help_text.replace("usage:", prefix, 1)
+        help_text = re.sub(r"^\s+\{[^}]+}\n", "", help_text, flags=re.MULTILINE)
+        return help_text
+
+    def error(self, message: str) -> None:  # noqa: D401 - match argparse signature
+        self.print_usage(sys.stderr)
+        template = self._messages.get("cli_error", "Error: {error}")
+        self.exit(2, template.format(error=message) + "\n")
+
+
+def parse_target_spec(raw: str, default_port: int) -> Optional[dict[str, object]]:
+    """Validate manual IPv4/IPv6 input with optional port."""
+
+    text = raw.strip()
+    if not text:
+        return None
+    port = default_port
+    normalized_ip: Optional[str] = None
+    if text.startswith("["):
+        closing = text.find("]")
+        if closing == -1:
+            return None
+        host_part = text[1:closing].strip()
+        remainder = text[closing + 1 :].strip()
+        if remainder:
+            if not remainder.startswith(":"):
+                return None
+            port_text = remainder[1:].strip()
+            if not port_text.isdigit():
+                return None
+            port = int(port_text)
         try:
-            normalized_ip = ipaddress.ip_address(host_candidate).compressed
+            normalized_ip = ipaddress.ip_address(host_part).compressed
         except ValueError:
             return None
         if not (1 <= port <= 65535):
@@ -618,53 +632,109 @@ def send_file_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
             "normalized_ip": normalized_ip,
         }
 
-    selected_peer: Optional[PeerInfo] = None
+    host_candidate = text
+    if ":" in text:
+        possible_host, possible_port = text.rsplit(":", 1)
+        possible_host = possible_host.strip()
+        possible_port = possible_port.strip()
+        if possible_port.isdigit():
+            port_candidate = int(possible_port)
+            if not (1 <= port_candidate <= 65535):
+                return None
+            try:
+                normalized_candidate = ipaddress.ip_address(possible_host).compressed
+            except ValueError:
+                pass
+            else:
+                host_candidate = possible_host
+                port = port_candidate
+                normalized_ip = normalized_candidate
+    host_candidate = host_candidate.strip()
+    try:
+        normalized_ip = ipaddress.ip_address(host_candidate).compressed
+    except ValueError:
+        return None
+    if not (1 <= port <= 65535):
+        return None
+    return {
+        "ip": normalized_ip,
+        "port": port,
+        "display": text,
+        "normalized_ip": normalized_ip,
+    }
+
+
+def send_file_cli(
+    ui: TerminalUI,
+    app: GlitterApp,
+    language: str,
+    *,
+    preselected_peer: Optional[PeerInfo] = None,
+    preselected_path: Optional[Path] = None,
+    manual_target_info: Optional[dict[str, object]] = None,
+) -> None:
+    peers = app.list_peers()
+    default_port = app.transfer_port
+    if preselected_peer is None:
+        if peers:
+            list_peers_cli(ui, app, language)
+        else:
+            show_message(ui, "no_peers", language)
+            show_message(ui, "manual_target_hint", language)
+        ui.blank()
+    else:
+        ui.blank()
+
+    selected_peer: Optional[PeerInfo] = preselected_peer
     manual_selection = False
-    manual_target_info: Optional[dict[str, object]] = None
-    while True:
-        prompt = render_message("prompt_peer_target", language, port=default_port)
-        choice = ui.input(prompt).strip()
-        if not choice:
-            show_message(ui, "operation_cancelled", language)
-            return
-        if choice.isdigit() and peers:
-            idx = int(choice) - 1
-            if 0 <= idx < len(peers):
-                selected_peer = peers[idx]
-                break
-        manual_target = parse_manual_target(choice)
-        if manual_target:
-            normalized_ip = manual_target.get("normalized_ip")
-            if peers and isinstance(normalized_ip, str):
-                matched_peer = next(
-                    (
-                        candidate
-                        for candidate in peers
-                        if candidate.ip == normalized_ip
-                    ),
-                    None,
-                )
-                if matched_peer:
-                    selected_peer = matched_peer
+    manual_info: Optional[dict[str, object]] = manual_target_info
+    if selected_peer is None:
+        while True:
+            prompt = render_message("prompt_peer_target", language, port=default_port)
+            choice = ui.input(prompt).strip()
+            if not choice:
+                show_message(ui, "operation_cancelled", language)
+                return
+            if choice.isdigit() and peers:
+                idx = int(choice) - 1
+                if 0 <= idx < len(peers):
+                    selected_peer = peers[idx]
                     break
-            normalized_ip = manual_target["ip"]
-            cached_peer_id = app.cached_peer_id_for_ip(normalized_ip)
-            peer_identifier = cached_peer_id or f"manual:{normalized_ip}:{manual_target['port']}"
-            selected_peer = PeerInfo(
-                peer_id=peer_identifier,
-                name=manual_target["display"],
-                ip=normalized_ip,
-                transfer_port=manual_target["port"],
-                language=language,
-                version=__version__,
-                last_seen=time.time(),
-            )
-            manual_target_info = manual_target
-            if cached_peer_id:
-                selected_peer.peer_id = cached_peer_id
-            manual_selection = True
-            break
-        show_message(ui, "invalid_peer_target", language)
+            manual_target = parse_target_spec(choice, default_port)
+            if manual_target:
+                normalized_ip = manual_target.get("normalized_ip")
+                if peers and isinstance(normalized_ip, str):
+                    matched_peer = next(
+                        (
+                            candidate
+                            for candidate in peers
+                            if candidate.ip == normalized_ip
+                        ),
+                        None,
+                    )
+                    if matched_peer:
+                        selected_peer = matched_peer
+                        break
+                normalized_ip = manual_target["ip"]
+                cached_peer_id = app.cached_peer_id_for_ip(normalized_ip)
+                peer_identifier = cached_peer_id or f"manual:{normalized_ip}:{manual_target['port']}"
+                selected_peer = PeerInfo(
+                    peer_id=peer_identifier,
+                    name=manual_target["display"],
+                    ip=normalized_ip,
+                    transfer_port=manual_target["port"],
+                    language=language,
+                    version=__version__,
+                    last_seen=time.time(),
+                )
+                manual_info = manual_target
+                if cached_peer_id:
+                    selected_peer.peer_id = cached_peer_id
+                manual_selection = True
+                break
+            show_message(ui, "invalid_peer_target", language)
+    else:
+        manual_selection = manual_info is not None
 
     peer = selected_peer
     if peer is None:
@@ -679,16 +749,22 @@ def send_file_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
                 current=__version__,
             )
         )
-    while True:
-        raw_input_path = ui.input(render_message("prompt_file_path", language))
-        file_input = raw_input_path.strip().strip('"').strip("'")
-        if not file_input:
-            show_message(ui, "operation_cancelled", language)
+    if preselected_path is not None:
+        file_path = Path(preselected_path).expanduser()
+        if not (file_path.exists() and (file_path.is_file() or file_path.is_dir())):
+            show_message(ui, "file_not_found", language)
             return
-        file_path = Path(file_input).expanduser()
-        if file_path.exists() and (file_path.is_file() or file_path.is_dir()):
-            break
-        show_message(ui, "file_not_found", language)
+    else:
+        while True:
+            raw_input_path = ui.input(render_message("prompt_file_path", language))
+            file_input = raw_input_path.strip().strip('"').strip("'")
+            if not file_input:
+                show_message(ui, "operation_cancelled", language)
+                return
+            file_path = Path(file_input).expanduser()
+            if file_path.exists() and (file_path.is_file() or file_path.is_dir()):
+                break
+            show_message(ui, "file_not_found", language)
     display_name = file_path.name + ("/" if file_path.is_dir() else "")
     ui.print(
         render_message(
@@ -782,13 +858,8 @@ def send_file_cli(ui: TerminalUI, app: GlitterApp, language: str) -> None:
         ui.blank()
 
     responder_id_obj = result_holder.get("responder_id")
-    if (
-        manual_selection
-        and manual_target_info
-        and isinstance(manual_target_info.get("normalized_ip"), str)
-        and isinstance(responder_id_obj, str)
-    ):
-        normalized_ip = manual_target_info["normalized_ip"]  # type: ignore[index]
+    if manual_selection and manual_info and isinstance(manual_info.get("normalized_ip"), str) and isinstance(responder_id_obj, str):
+        normalized_ip = manual_info["normalized_ip"]  # type: ignore[index]
         app.remember_peer_id_for_ip(normalized_ip, responder_id_obj)
         peer.peer_id = responder_id_obj
 
@@ -1410,8 +1481,7 @@ def wait_for_completion(
         ui.blank()
 
 
-def run_cli() -> int:
-    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+def initialize_application(debug: bool) -> tuple[GlitterApp, AppConfig, TerminalUI, str]:
     config = load_config()
     ui = TerminalUI()
 
@@ -1449,7 +1519,7 @@ def run_cli() -> int:
 
     app = GlitterApp(
         device_id=config.device_id or str(uuid.uuid4()),
-        device_name=device_name,
+        device_name=config.device_name or default_device_name(),
         language=language,
         transfer_port=config.transfer_port,
         debug=debug,
@@ -1458,6 +1528,12 @@ def run_cli() -> int:
         trust_store=trust_store,
         ui=ui,
     )
+    return app, config, ui, language
+
+
+def run_cli() -> int:
+    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app, config, ui, language = initialize_application(debug)
     show_message(ui, "icon", language)
     show_message(ui, "welcome", language)
     show_message(ui, "current_version", language, version=__version__)
@@ -1516,7 +1592,140 @@ def run_cli() -> int:
     return 0
 
 
-def main() -> int:
+def run_send_command(target: str, file_path_arg: str) -> int:
+    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app, config, ui, language = initialize_application(debug)
+    show_message(ui, "icon", language)
+    show_message(ui, "welcome", language)
+    show_message(ui, "current_version", language, version=__version__)
+    try:
+        app.start()
+    except OSError as exc:
+        failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
+        ui.print(
+            render_message(
+                "settings_port_failed",
+                language,
+                port=failure_port,
+                error=exc,
+            )
+        )
+        app.stop()
+        return 1
+
+    exit_code = 0
+    try:
+        default_port = app.transfer_port
+        target_info = parse_target_spec(target, default_port)
+        if not target_info:
+            show_message(ui, "invalid_peer_target", language)
+            return 1
+
+        normalized_ip = target_info.get("normalized_ip")
+        manual_info: Optional[dict[str, object]] = None
+        selected_peer: Optional[PeerInfo] = None
+        if isinstance(normalized_ip, str):
+            peers = app.list_peers()
+            selected_peer = next(
+                (
+                    peer
+                    for peer in peers
+                    if peer.ip == normalized_ip and peer.transfer_port == target_info["port"]
+                ),
+                None,
+            )
+            if not selected_peer:
+                cached_peer_id = app.cached_peer_id_for_ip(normalized_ip)
+                peer_identifier = cached_peer_id or f"manual:{normalized_ip}:{target_info['port']}"
+                selected_peer = PeerInfo(
+                    peer_id=peer_identifier,
+                    name=str(target_info.get("display") or target),
+                    ip=target_info["ip"],
+                    transfer_port=target_info["port"],
+                    language=language,
+                    version=__version__,
+                    last_seen=time.time(),
+                )
+                if cached_peer_id:
+                    selected_peer.peer_id = cached_peer_id
+                manual_info = target_info
+
+        if not selected_peer:
+            show_message(ui, "invalid_peer_target", language)
+            return 1
+
+        file_path = Path(file_path_arg).expanduser()
+        if not (file_path.exists() and (file_path.is_file() or file_path.is_dir())):
+            show_message(ui, "file_not_found", language)
+            return 1
+
+        send_file_cli(
+            ui,
+            app,
+            language,
+            preselected_peer=selected_peer,
+            preselected_path=file_path,
+            manual_target_info=manual_info,
+        )
+    finally:
+        try:
+            app.cancel_pending_requests()
+        finally:
+            try:
+                app.stop()
+            except KeyboardInterrupt:
+                pass
+    return exit_code
+
+
+def build_parser(language: str) -> argparse.ArgumentParser:
+    language_messages = MESSAGES.get(language, MESSAGES["en"])
+    parser = LocalizedArgumentParser(
+        prog="glitter",
+        description=get_message("cli_description", language),
+        add_help=True,
+        messages=language_messages,
+    )
+    parser.usage = get_message("cli_usage", language)
+    parser._positionals.title = get_message("cli_positionals_title", language)
+    parser._optionals.title = get_message("cli_optionals_title", language)
+    subparsers = parser.add_subparsers(
+        dest="command",
+        title=get_message("cli_commands_title", language),
+        parser_class=LocalizedArgumentParser,
+    )
+    subparsers.metavar = None
+    send_parser = subparsers.add_parser(
+        "send",
+        help=get_message("cli_send_help", language),
+        description=get_message("cli_send_help", language),
+        messages=language_messages,
+    )
+    send_parser.prog = f"{parser.prog} send"
+    send_parser.usage = get_message("cli_send_usage", language)
+    send_parser._positionals.title = get_message("cli_positionals_title", language)
+    send_parser._optionals.title = get_message("cli_optionals_title", language)
+    send_parser.add_argument(
+        "target",
+        help=get_message("cli_send_target_help", language),
+    )
+    send_parser.add_argument(
+        "path",
+        help=get_message("cli_send_path_help", language),
+    )
+    return parser
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    arguments = sys.argv[1:] if argv is None else argv
+    if not arguments:
+        return run_cli()
+    config = load_config()
+    language = config.language if config.language in LANGUAGES else "en"
+    parser = build_parser(language)
+    args = parser.parse_args(arguments)
+    if getattr(args, "command", None) == "send":
+        return run_send_command(args.target, args.path)
     return run_cli()
 
 

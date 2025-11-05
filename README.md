@@ -76,13 +76,18 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
 
 ## Usage
 
-- [1] List peers: Show online devices (name/IP/version)
-- [2] Send file: Select a peer or enter an IP(v4/v6:port) and input a path (quotes are allowed)
-- [3] Incoming requests: Review transfer requests; Accept/Decline and choose a save directory
-- [4] Check updates: Open‑source repo link and latest version info
-- [5] History: Show the latest transfer records
-- [6] Settings: Change language/device name/port/encryption, clear history or trusted fingerprints
-- [7] Quit: Exit the program
+- `glitter` — interactive menu  
+  - [1] List peers: Show online devices (name/IP/version)  
+  - [2] Send file: Select a peer or enter an IP (IPv4/IPv6[:port]) and input a path  
+  - [3] Incoming requests: Review transfer requests; Accept/Decline and choose a save directory  
+  - [4] Check updates: Open‑source repo link and latest version info  
+  - [5] History: Show the latest transfer records  
+  - [6] Settings: Change language/device name/port/encryption, clear history or trusted fingerprints  
+  - [7] Quit: Exit the program
+- `glitter send <IP[:port]> <path>` — direct send without entering the menu  
+  - Example: `glitter send 192.168.1.20 ~/Downloads/demo.zip`  
+  - IPv6: `glitter send "[fe80::abcd]:45846" ./folder`  
+  - Reuses the same progress display and history logging as the interactive flow (the receiver needs the menu running to approve)
 
 ## Files & Persistence
 
