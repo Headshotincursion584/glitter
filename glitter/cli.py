@@ -141,7 +141,7 @@ class ProgressTracker:
         self._ui = ui
         self._language = language
         self._min_interval = min_interval
-        self._start_time = time.time()
+        self._start_time: Optional[float] = None
         self._last_time: Optional[float] = None
         self._last_bytes = 0
         self._last_total = 0
@@ -175,7 +175,10 @@ class ProgressTracker:
             time_delta = now - self._last_time
             if time_delta < self._min_interval:
                 return False
-        elapsed = max(now - self._start_time, 1e-9)
+        if self._start_time is None:
+            self._start_time = now
+        start_time = self._start_time
+        elapsed = max(now - start_time, 1e-9)
         if self._last_time is None or transferred < self._last_bytes:
             rate = transferred / elapsed if elapsed > 0 else 0.0
         else:
