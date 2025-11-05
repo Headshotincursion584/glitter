@@ -258,6 +258,7 @@ def get_message(key: str, language: str, **kwargs: object) -> str:
 
 
 TONE_STYLES: Dict[str, str] = {
+    "icon": "#F4D03F",
     "banner": "bold cyan",
     "heading": "bold bright_cyan",
     "info": "bright_black",
@@ -270,7 +271,7 @@ TONE_STYLES: Dict[str, str] = {
 
 MESSAGE_TONES: Dict[str, str] = {
     "welcome": "",
-    "icon": "",
+    "icon": "icon",
     "select_language": "",
     "menu_header": "",
     "menu_options": "",
