@@ -74,11 +74,7 @@ else:
 hiddenimports = []
 hiddenimports += collect_submodules('cryptography')
 
-if IS_WINDOWS:
-    icon_filename = "glitter.ico"
-else:
-    icon_filename = "glitter.png"
-ICON_PATH = str(ROOT_DIR / "assets" / icon_filename)
+ICON_PATH = str(ROOT_DIR / "assets" / "glitter.ico")
 
 
 a = Analysis(
