@@ -128,6 +128,84 @@ def show_message(
     ui.print(render_message(key, language, tone=tone, **kwargs))
 
 
+class ProgressTracker:
+    """Unifies progress refresh cadence and rate formatting for transfers."""
+
+    def __init__(
+        self,
+        ui: TerminalUI,
+        language: str,
+        *,
+        min_interval: float = 0.1,
+    ) -> None:
+        self._ui = ui
+        self._language = language
+        self._min_interval = min_interval
+        self._start_time = time.time()
+        self._last_time: Optional[float] = None
+        self._last_bytes = 0
+        self._last_total = 0
+        self._line_width = 0
+        self._progress_shown = False
+
+    @property
+    def last_bytes(self) -> int:
+        return self._last_bytes
+
+    @property
+    def last_total(self) -> int:
+        return self._last_total
+
+    @property
+    def min_interval(self) -> float:
+        return self._min_interval
+
+    def update(self, transferred: int, total: int, *, force: bool = False) -> bool:
+        transferred = max(0, int(transferred))
+        display_total = int(total) if total > 0 else transferred
+        now = time.time()
+        if (
+            not force
+            and self._last_time is not None
+            and transferred == self._last_bytes
+            and display_total == self._last_total
+        ):
+            return False
+        if not force and self._last_time is not None:
+            time_delta = now - self._last_time
+            if time_delta < self._min_interval:
+                return False
+        elapsed = max(now - self._start_time, 1e-9)
+        if self._last_time is None or transferred < self._last_bytes:
+            rate = transferred / elapsed if elapsed > 0 else 0.0
+        else:
+            time_delta = now - self._last_time
+            byte_delta = transferred - self._last_bytes
+            rate = byte_delta / time_delta if time_delta > 0 else 0.0
+        if force:
+            rate = transferred / elapsed if elapsed > 0 else 0.0
+        message = render_message(
+            "progress_line",
+            self._language,
+            transferred=format_size(transferred),
+            total=format_size(display_total),
+            rate=format_rate(rate),
+        )
+        if len(message.plain) > self._line_width:
+            self._line_width = len(message.plain)
+        padding = " " * max(0, self._line_width - len(message.plain))
+        self._ui.carriage(message, padding)
+        self._last_time = now
+        self._last_bytes = transferred
+        self._last_total = display_total
+        self._progress_shown = True
+        return True
+
+    def finish(self) -> None:
+        if self._progress_shown:
+            self._ui.blank()
+
+
 class GlitterApp:
     """Orchestrates discovery, transfers, and CLI prompts."""
 
@@ -780,42 +858,16 @@ def send_file_cli(
     if fingerprint and app.should_show_local_fingerprint(peer):
         ui.print(render_message("local_fingerprint", language, fingerprint=fingerprint))
     show_message(ui, "cancel_hint", language)
-    last_progress = {"sent": -1, "total": -1, "time": None}
-    throttle = {"min_interval": 0.1, "min_bytes": 512 * 1024}
-    progress_shown = {"value": False}
-    handshake_announced = {"value": False}
-    line_width = {"value": 0}
+    progress_tracker = ProgressTracker(ui, language)
+    handshake_announced = False
 
     def report_progress(sent: int, total: int) -> None:
-        now = time.time()
-        last_time = last_progress["time"]
-        if sent != total and last_time is not None:
-            if (now - last_time) < throttle["min_interval"]:
-                prev = last_progress["sent"]
-                if prev >= 0 and (sent - prev) < throttle["min_bytes"]:
-                    return
-        if not handshake_announced["value"] and last_progress["sent"] < 0:
+        nonlocal handshake_announced
+        if not handshake_announced:
             show_message(ui, "recipient_accepted", language)
-            handshake_announced["value"] = True
-        previous_sent = last_progress["sent"]
-        delta_bytes = sent - previous_sent if previous_sent >= 0 else 0
-        delta_time = now - last_time if last_time not in {None, 0.0} else 0.0
-        rate = delta_bytes / delta_time if delta_time > 0 else 0.0
-        last_progress["sent"] = sent
-        last_progress["total"] = total
-        last_progress["time"] = now
-        progress_shown["value"] = True
-        message = render_message(
-            "progress_line",
-            language,
-            transferred=format_size(sent),
-            total=format_size(total),
-            rate=format_rate(rate),
-        )
-        if len(message.plain) > line_width["value"]:
-            line_width["value"] = len(message.plain)
-        padding = " " * max(0, line_width["value"] - len(message.plain))
-        ui.carriage(message, padding)
+            handshake_announced = True
+        display_total = total if total > 0 else sent
+        progress_tracker.update(sent, display_total, force=(total > 0 and sent >= total))
 
     file_size = file_path.stat().st_size if file_path.is_file() else 0
     transfer_label = display_name
@@ -853,9 +905,11 @@ def send_file_cli(
         result_holder.setdefault("cancelled", True)
 
     file_hash = result_holder.get("hash") if isinstance(result_holder.get("hash"), str) else None
-    final_size = last_progress["total"] if last_progress["total"] >= 0 else file_size
-    if progress_shown["value"]:
-        ui.blank()
+    final_bytes = progress_tracker.last_bytes
+    final_total = progress_tracker.last_total or final_bytes or file_size
+    progress_tracker.update(final_bytes, final_total, force=True)
+    final_size = final_total
+    progress_tracker.finish()
 
     responder_id_obj = result_holder.get("responder_id")
     if manual_selection and manual_info and isinstance(manual_info.get("normalized_ip"), str) and isinstance(responder_id_obj, str):
@@ -1424,35 +1478,14 @@ def wait_for_completion(
     timeout: float = 600.0,
 ) -> None:
     start = time.time()
-    last_sent = -1
-    last_time = None
-    progress_shown = False
-    line_width = 0
+    progress_tracker = ProgressTracker(ui, language)
     while ticket.status in {"pending", "receiving"}:
         if ticket.status == "receiving":
             sent = ticket.bytes_transferred
             total = ticket.filesize
-            now = time.time()
-            time_since = (now - last_time) if last_time is not None else None
-            if sent != last_sent or (time_since is not None and time_since >= 0.1) or sent == total:
-                delta_bytes = sent - last_sent if last_sent >= 0 else 0
-                delta_time = time_since if time_since and time_since > 0 else 0.0
-                rate = delta_bytes / delta_time if delta_time > 0 else 0.0
-                message = render_message(
-                    "progress_line",
-                    language,
-                    transferred=format_size(sent),
-                    total=format_size(total),
-                    rate=format_rate(rate),
-                )
-                if len(message.plain) > line_width:
-                    line_width = len(message.plain)
-                padding = " " * max(0, line_width - len(message.plain))
-                ui.carriage(message, padding)
-                last_sent = sent
-                last_time = now
-                progress_shown = True
-        time.sleep(0.2)
+            display_total = total if total > 0 else sent
+            progress_tracker.update(sent, display_total, force=(total > 0 and sent >= total))
+        time.sleep(progress_tracker.min_interval)
         if timeout and (time.time() - start) > timeout:
             ticket.status = "failed"
             ticket.error = "timeout"
@@ -1460,25 +1493,8 @@ def wait_for_completion(
     if ticket.status == "completed":
         final_sent = ticket.bytes_transferred
         final_total = ticket.filesize if ticket.filesize else final_sent
-        if final_sent >= 0 and final_sent != last_sent:
-            now = time.time()
-            delta_bytes = final_sent - last_sent if last_sent >= 0 else final_sent
-            delta_time = (now - last_time) if last_time else 0.0
-            rate = delta_bytes / delta_time if delta_time > 0 else 0.0
-            message = render_message(
-                "progress_line",
-                language,
-                transferred=format_size(final_sent),
-                total=format_size(final_total),
-                rate=format_rate(rate),
-            )
-            if len(message.plain) > line_width:
-                line_width = len(message.plain)
-            padding = " " * max(0, line_width - len(message.plain))
-            ui.carriage(message, padding)
-            progress_shown = True
-    if progress_shown:
-        ui.blank()
+        progress_tracker.update(final_sent, final_total, force=True)
+    progress_tracker.finish()
 
 
 def initialize_application(debug: bool) -> tuple[GlitterApp, AppConfig, TerminalUI, str]:

@@ -29,12 +29,6 @@ dependencies = [
 ]
 dynamic = ["version"]
 
-[project.urls]
-Homepage = "https://github.com/scarletkc/glitter"
-Repository = "https://github.com/scarletkc/glitter"
-Issues = "https://github.com/scarletkc/glitter/issues"
-Changelog = "https://github.com/scarletkc/glitter/commits/main"
-
 [project.scripts]
 glitter = "glitter.cli:main"
 
