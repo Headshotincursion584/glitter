@@ -80,9 +80,9 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
   - [1] List peers: Show online devices (name/IP/version)  
   - [2] Send file: Select a peer or enter an IP (IPv4/IPv6[:port]) and input a path  
   - [3] Incoming requests: Review transfer requests; Accept/Decline and choose a save directory  
-  - [4] Check updates: Open‑source repo link and latest version info  
+  - [4] Check updates: Open-source repo link and latest version info  
   - [5] History: Show the latest transfer records  
-  - [6] Settings: Change language/device name/port/encryption, clear history or trusted fingerprints  
+  - [6] Settings: Change language/device name/port/encryption, choose default receive directory, toggle auto-accept trusted transfers, clear history or trusted fingerprints  
   - [7] Quit: Exit the program
 - `glitter send <IP[:port]> <path>` — direct send without entering the menu  
   - Example: `glitter send 192.168.1.20 ~/Downloads/demo.zip`  
@@ -91,10 +91,10 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
 
 ## Files & Persistence
 
-- Config: `~/.glitter/config.json` (language, device name, transfer port, encryption)
+- Config: `~/.glitter/config.json` (language, device name, transfer port, encryption, default receive directory, auto-accept trusted flag)
 - Trusted fingerprints: `~/.glitter/known_peers.json` (peer IDs and fingerprints stored after first approval)
 - History: `~/.glitter/history.jsonl` (one JSON per line)
-- Default download folder: `~/Downloads/GlitterDownloads` on Windows, `~/GlitterDownloads` elsewhere
+- Default receive folder: configurable; defaults to `~/Downloads/GlitterDownloads` on Windows, `~/GlitterDownloads` elsewhere
 
 ## Debugging
 

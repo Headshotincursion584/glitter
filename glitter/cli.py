@@ -223,6 +223,7 @@ class GlitterApp:
         encryption_enabled: bool = True,
         identity_public: Optional[bytes] = None,
         trust_store: Optional[TrustedPeerStore] = None,
+        auto_accept_trusted: bool = False,
         ui: Optional[TerminalUI] = None,
     ) -> None:
         self.device_id = device_id
@@ -230,6 +231,7 @@ class GlitterApp:
         self.language = language
         self.default_download_dir = self._prepare_download_dir(default_download_dir)
         self.debug = debug
+        self.auto_accept_trusted = auto_accept_trusted
         self._encryption_enabled = encryption_enabled
         self.ui = ui or TerminalUI()
         self._identity_public = identity_public or b""
@@ -270,6 +272,9 @@ class GlitterApp:
     def reset_default_download_dir(self) -> Path:
         self.default_download_dir = ensure_download_dir()
         return self.default_download_dir
+
+    def set_auto_accept_trusted(self, enabled: bool) -> None:
+        self.auto_accept_trusted = bool(enabled)
 
     def _create_transfer_service(self, bind_port: int, allow_fallback: bool) -> TransferService:
         return TransferService(
@@ -516,8 +521,102 @@ class GlitterApp:
                 )
             )
             self.ui.flush()
+
+        if self.auto_accept_trusted and ticket.identity_status == "trusted":
+            if self._transfer_service.has_active_receiving():
+                self.ui.print(
+                    render_message(
+                        "auto_accept_trusted_busy",
+                        self.language,
+                        filename=display_name,
+                    )
+                )
+                self.ui.flush()
+            else:
+                destination = self.default_download_dir
+                try:
+                    accepted_ticket = self.accept_request(ticket.request_id, destination)
+                except Exception as exc:  # noqa: BLE001
+                    self.ui.print(
+                        render_message(
+                            "auto_accept_trusted_failed",
+                            self.language,
+                            error=str(exc),
+                        )
+                    )
+                    self.ui.flush()
+                else:
+                    if accepted_ticket:
+                        self._run_auto_accept_postprocess(accepted_ticket, ticket, destination)
+                        return
         show_message(self.ui, "waiting_for_decision", self.language)
         self.ui.flush()
+
+    def _run_auto_accept_postprocess(
+        self,
+        accepted_ticket: TransferTicket,
+        ticket: TransferTicket,
+        destination: Path,
+    ) -> None:
+        display_name = ticket.filename + ("/" if ticket.content_type == "directory" else "")
+        self.ui.print(
+            render_message(
+                "auto_accept_trusted_notice",
+                self.language,
+                filename=display_name,
+                name=ticket.sender_name,
+                path=str(destination),
+            )
+        )
+        self.ui.flush()
+
+        def monitor_completion() -> None:
+            while accepted_ticket.status in {"pending", "receiving"}:
+                time.sleep(0.2)
+            if accepted_ticket.status == "completed" and accepted_ticket.saved_path:
+                self.log_history(
+                    direction="receive",
+                    status="completed",
+                    filename=display_name,
+                    size=accepted_ticket.filesize,
+                    sha256=accepted_ticket.expected_hash,
+                    remote_name=accepted_ticket.sender_name,
+                    remote_ip=accepted_ticket.sender_ip,
+                    source_path=None,
+                    target_path=accepted_ticket.saved_path,
+                    remote_version=accepted_ticket.sender_version,
+                )
+                self.ui.print(
+                    render_message(
+                        "receive_done",
+                        self.language,
+                        path=str(accepted_ticket.saved_path),
+                    )
+                )
+            elif accepted_ticket.status == "failed":
+                error_text = accepted_ticket.error or "failed"
+                self.log_history(
+                    direction="receive",
+                    status=error_text,
+                    filename=display_name,
+                    size=accepted_ticket.filesize,
+                    sha256=accepted_ticket.expected_hash,
+                    remote_name=accepted_ticket.sender_name,
+                    remote_ip=accepted_ticket.sender_ip,
+                    source_path=None,
+                    target_path=accepted_ticket.saved_path,
+                    remote_version=accepted_ticket.sender_version,
+                )
+                self.ui.print(
+                    render_message(
+                        "receive_failed",
+                        self.language,
+                        error=error_text,
+                    )
+                )
+            self.ui.flush()
+
+        threading.Thread(target=monitor_completion, name="glitter-auto-accept", daemon=True).start()
 
     def _handle_request_cancelled(self, ticket: TransferTicket) -> None:
         display_name = ticket.filename + ("/" if ticket.content_type == "directory" else "")
@@ -1319,6 +1418,10 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
             "settings_encryption_on" if app.encryption_enabled else "settings_encryption_off",
             language,
         )
+        auto_accept_label = get_message(
+            "settings_auto_accept_on" if app.auto_accept_trusted else "settings_auto_accept_off",
+            language,
+        )
         ui.print(
             render_message(
                 "settings_header",
@@ -1328,6 +1431,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                 device=device_display,
                 port=app.transfer_port,
                 encryption=encryption_label,
+                auto_accept=auto_accept_label,
             )
         )
         show_message(ui, "settings_options", language)
@@ -1524,6 +1628,49 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                 )
             )
         elif choice == "7":
+            current_state = get_message(
+                "settings_auto_accept_on" if app.auto_accept_trusted else "settings_auto_accept_off",
+                language,
+            )
+            try:
+                answer = ui.input(
+                    render_message(
+                        "settings_auto_accept_prompt",
+                        language,
+                        state=current_state,
+                    )
+                ).strip().lower()
+            except (KeyboardInterrupt, EOFError):
+                ui.blank()
+                show_message(ui, "operation_cancelled", language)
+                continue
+            if not answer:
+                show_message(ui, "operation_cancelled", language)
+                continue
+            if answer in {"y", "yes", "true", "on", "1", "是", "shi"}:
+                desired = True
+            elif answer in {"n", "no", "false", "off", "0", "否", "fou"}:
+                desired = False
+            else:
+                show_message(ui, "invalid_choice", language)
+                continue
+            if desired == app.auto_accept_trusted:
+                show_message(ui, "operation_cancelled", language)
+                continue
+            app.set_auto_accept_trusted(desired)
+            config.auto_accept_trusted = desired
+            save_config(config)
+            ui.print(
+                render_message(
+                    "settings_auto_accept_updated",
+                    language,
+                    state=get_message(
+                        "settings_auto_accept_on" if desired else "settings_auto_accept_off",
+                        language,
+                    ),
+                )
+            )
+        elif choice == "8":
             try:
                 confirm = ui.input(
                     render_message("settings_trust_clear_confirm", language)
@@ -1539,7 +1686,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                     show_message(ui, "operation_cancelled", language)
             else:
                 show_message(ui, "operation_cancelled", language)
-        elif choice == "8":
+        elif choice == "9":
             return language
         else:
             show_message(ui, "invalid_choice", language)
@@ -1618,6 +1765,7 @@ def initialize_application(debug: bool) -> tuple[GlitterApp, AppConfig, Terminal
         encryption_enabled=config.encryption_enabled,
         identity_public=identity_public,
         trust_store=trust_store,
+        auto_accept_trusted=config.auto_accept_trusted,
         ui=ui,
     )
     return app, config, ui, language

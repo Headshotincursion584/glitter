@@ -24,6 +24,7 @@ class AppConfig:
     device_id: Optional[str] = None
     identity_private_key: Optional[str] = None
     download_dir: Optional[str] = None
+    auto_accept_trusted: bool = False
 
 
 def load_config() -> AppConfig:
@@ -61,6 +62,9 @@ def load_config() -> AppConfig:
     else:
         download_dir = None
 
+    auto_accept_raw = data.get("auto_accept_trusted")
+    auto_accept_trusted = auto_accept_raw if isinstance(auto_accept_raw, bool) else False
+
     return AppConfig(
         language=data.get("language"),
         device_name=data.get("device_name"),
@@ -69,6 +73,7 @@ def load_config() -> AppConfig:
         device_id=device_id,
         identity_private_key=identity_key,
         download_dir=download_dir,
+        auto_accept_trusted=auto_accept_trusted,
     )
 
 
@@ -98,3 +103,4 @@ def resolve_download_dir(config: AppConfig) -> Path:
             return ensure_download_dir()
         return path
     return ensure_download_dir()
+

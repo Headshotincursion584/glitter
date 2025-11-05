@@ -82,7 +82,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   - [3] 待处理请求：接收端确认/拒绝，并可选择保存目录
   - [4] 查看更新：显示当前版本与最新版本（需联网），并提供项目地址
   - [5] 传输记录：查看最近记录
-  - [6] 设置：修改语言/设备名/端口/加密，清空历史或信任指纹
+  - [6] 设置：修改语言/设备名/端口/加密、默认接收目录、空闲时自动接收可信设备，清空历史或信任指纹
   - [7] 退出
 - `glitter send <IP[:端口]> <路径>` — 快速发送，无需进入菜单
   - 示例：`glitter send 192.168.1.20 ~/Downloads/demo.zip`
@@ -91,10 +91,10 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 ## 文件与持久化
 
-- 配置：`~/.glitter/config.json`（语言、设备名、传输端口、加密）
+- 配置：`~/.glitter/config.json`（语言、设备名、传输端口、加密、默认接收目录、空闲自动接收开关）
 - 已信任指纹：`~/.glitter/known_peers.json`（首次确认后的设备指纹）
 - 历史：`~/.glitter/history.jsonl`（每行一条 JSON）
-- Windows 默认下载目录：`~/Downloads/GlitterDownloads`，其他系统 `~/GlitterDownloads`
+- 默认接收目录：可在设置中自定义，默认值为 Windows `~/Downloads/GlitterDownloads`，其他系统 `~/GlitterDownloads`
 
 ## 调试
 

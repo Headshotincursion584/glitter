@@ -220,6 +220,10 @@ class TransferService:
         with self._pending_lock:
             return [ticket for ticket in self._pending.values() if ticket.status == "pending"]
 
+    def has_active_receiving(self) -> bool:
+        with self._pending_lock:
+            return any(ticket.status == "receiving" for ticket in self._pending.values())
+
     def get_ticket(self, request_id: str) -> Optional[TransferTicket]:
         with self._pending_lock:
             return self._pending.get(request_id)
