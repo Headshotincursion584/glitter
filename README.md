@@ -51,11 +51,12 @@ Glitter provides a **simple, terminal-based** alternative to GUI tools and compl
 
 On first run, Glitter asks for language and device name and saves them. Next runs go straight to the main menu.
 
+- Compilation: [binary](https://github.com/scarletkc/glitter/releases)
 - Firewall: Allow UDP 45845 and TCP 45846 (transfer port) for the app if discovery/transfer is blocked.
 
-### PyPI
+### Installation
 
-recommended to install and run via [pipx](https://pipx.pypa.io/stable/):
+Recommended to install and run via [pipx](https://pipx.pypa.io/stable/):
 
 - `apt install pipx`  # Debian/Ubuntu
 - `pipx install glitter-cli`
@@ -71,9 +72,7 @@ recommended to install and run via [pipx](https://pipx.pypa.io/stable/):
   
 </details>
 
-### GitHub
-
-- Compilation: [binary](https://github.com/scarletkc/glitter/releases)
+### From source
 
 Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requirements.txt)
 
@@ -81,6 +80,7 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
   - `git clone https://github.com/scarletkc/glitter.git`
   - `pip install -r requirements.txt`
   - `python3 -m glitter`
+   - `git pull` # to update
 
 ## Usage
 

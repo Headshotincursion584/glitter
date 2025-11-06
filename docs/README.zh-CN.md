@@ -51,9 +51,10 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 首次启动会提示选择语言与设备名称并保存。之后启动将直接进入主菜单。
 
+- 二进制文件： [直接下载使用](https://github.com/scarletkc/glitter/releases)
 - 防火墙：若发现/传输异常，请放行 UDP 45845 以及 TCP 45846（传输端口）。
 
-### PyPI
+### 安装
 
 推荐使用 [pipx](https://pipx.pypa.io/stable/) 安装与运行：
 
@@ -71,9 +72,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   
 </details>
 
-### GitHub
-
-- 二进制文件： [直接下载使用](https://github.com/scarletkc/glitter/releases)
+### 从源码安装
 
 要求：安装[依赖](https://github.com/scarletkc/glitter/blob/main/requirements.txt)
 
@@ -81,6 +80,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   - `git clone https://github.com/scarletkc/glitter.git`
   - `pip install -r requirements.txt`
   - `python3 -m glitter`
+   - `git pull` # 更新
 
 ## 用法
 
