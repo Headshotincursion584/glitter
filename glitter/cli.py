@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import argparse
 import ipaddress
+import random
 import os
 import re
 import shutil
@@ -170,6 +171,8 @@ def show_message(
     """Helper to print a localized message with consistent styling."""
 
     ui.print(render_message(key, language, tone=tone, **kwargs))
+    if key == "goodbye" and random.random() < 0.1:
+        ui.print(render_message("support_prompt", language))
 
 
 class ProgressTracker:
