@@ -2070,9 +2070,15 @@ def run_peers_command() -> int:
     return exit_code
 
 
-def run_history_command() -> int:
+def run_history_command(clear: bool = False) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
+
+    if clear:
+        clear_history()
+        show_message(ui, "settings_history_cleared", language)
+        return 0
+
     try:
         app.start()
     except OSError as exc:
@@ -2396,6 +2402,11 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         action="help",
         help=get_message("cli_help_help", language),
     )
+    history_parser.add_argument(
+        "--clear",
+        action="store_true",
+        help=get_message("cli_history_clear_help", language),
+    )
 
     settings_parser = subparsers.add_parser(
         "settings",
@@ -2490,7 +2501,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if getattr(args, "command", None) == "peers":
         return run_peers_command()
     if getattr(args, "command", None) == "history":
-        return run_history_command()
+        return run_history_command(clear=bool(getattr(args, "clear", False)))
     if getattr(args, "command", None) == "settings":
         return run_settings_command(
             getattr(args, "language", None),
