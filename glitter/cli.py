@@ -1835,9 +1835,6 @@ def run_cli() -> int:
 def run_send_command(target: str, file_path_arg: str) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
-    show_message(ui, "icon", language)
-    show_message(ui, "welcome", language)
-    show_message(ui, "current_version", language, version=__version__)
     try:
         app.start()
     except OSError as exc:
@@ -1918,6 +1915,38 @@ def run_send_command(target: str, file_path_arg: str) -> int:
     return exit_code
 
 
+def run_peers_command() -> int:
+    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app, config, ui, language = initialize_application(debug)
+    try:
+        app.start()
+    except OSError as exc:
+        failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
+        ui.print(
+            render_message(
+                "settings_port_failed",
+                language,
+                port=failure_port,
+                error=exc,
+            )
+        )
+        app.stop()
+        return 1
+
+    exit_code = 0
+    try:
+        list_peers_cli(ui, app, language)
+    finally:
+        try:
+            app.cancel_pending_requests()
+        finally:
+            try:
+                app.stop()
+            except KeyboardInterrupt:
+                pass
+    return exit_code
+
+
 def build_parser(language: str) -> argparse.ArgumentParser:
     language_messages = MESSAGES.get(language, MESSAGES["en"])
     parser = LocalizedArgumentParser(
@@ -1973,6 +2002,22 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         "path",
         help=get_message("cli_send_path_help", language),
     )
+
+    peers_parser = subparsers.add_parser(
+        "peers",
+        help=get_message("cli_peers_help", language),
+        description=get_message("cli_peers_help", language),
+        add_help=False,
+        messages=language_messages,
+    )
+    peers_parser.prog = f"{parser.prog} peers"
+    peers_parser._optionals.title = get_message("cli_optionals_title", language)
+    peers_parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=get_message("cli_help_help", language),
+    )
     return parser
 
 
@@ -1986,6 +2031,8 @@ def main(argv: Optional[list[str]] = None) -> int:
     args = parser.parse_args(arguments)
     if getattr(args, "command", None) == "send":
         return run_send_command(args.target, args.path)
+    if getattr(args, "command", None) == "peers":
+        return run_peers_command()
     return run_cli()
 
 
