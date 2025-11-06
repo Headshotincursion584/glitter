@@ -58,6 +58,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "cli_send_usage": "%(prog)s <target> <path>",
         "cli_peers_help": "List discovered peers on the local network",
         "cli_history_help": "Show recent transfer history",
+        "cli_settings_help": "Open the interactive settings menu",
         "cli_update_help": "Check for Glitter updates",
         "cli_receive_help": "Receive files in auto-accept mode without the menu",
         "cli_receive_mode_help": "Override auto-accept mode for this session (trusted|all)",
@@ -161,7 +162,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "receive_dir_set": "Temporary download directory: {path}",
         "receive_dir_error": "Failed to prepare directory: {error}",
         "receive_waiting": "Listening for incoming transfers ({mode}). Press Ctrl+C to stop.",
-        "receive_manual_notice": "Incoming '{filename}' from {name} ({ip}) requires manual approval in the main menu.",
+        "receive_manual_notice": "Incoming untrusted '{filename}' from {name} ({ip}) requires manual approval in the main menu.",
         "receive_shutdown": "Stopping receive service...",
     },
     "zh": {
@@ -209,6 +210,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "cli_send_usage": "%(prog)s <target> <path>",
         "cli_peers_help": "列出当前发现的局域网客户端",
         "cli_history_help": "展示最近的传输记录",
+        "cli_settings_help": "打开交互式设置菜单",
         "cli_update_help": "检查 Glitter 更新",
         "cli_receive_help": "以自动接收模式运行并接收文件",
         "cli_receive_mode_help": "本次会话覆盖自动接收模式（trusted/all）",
@@ -312,7 +314,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "receive_dir_set": "临时保存目录：{path}",
         "receive_dir_error": "无法准备保存目录：{error}",
         "receive_waiting": "正在监听传入文件（模式：{mode}），按 Ctrl+C 结束。",
-        "receive_manual_notice": "收到来自 {name}（{ip}）的“{filename}”，需在主菜单手动处理确认。",
+        "receive_manual_notice": "首次收到来自 {name}（{ip}）的“{filename}”，需在主菜单手动处理确认。",
         "receive_shutdown": "正在停止接收服务……",
     },
 }

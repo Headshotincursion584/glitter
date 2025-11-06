@@ -2096,6 +2096,37 @@ def run_update_command() -> int:
     return 0
 
 
+def run_settings_command() -> int:
+    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app, config, ui, language = initialize_application(debug)
+    try:
+        app.start()
+    except OSError as exc:
+        failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
+        ui.print(
+            render_message(
+                "settings_port_failed",
+                language,
+                port=failure_port,
+                error=exc,
+            )
+        )
+        app.stop()
+        return 1
+
+    try:
+        settings_menu(ui, app, config, language)
+    finally:
+        try:
+            app.cancel_pending_requests()
+        finally:
+            try:
+                app.stop()
+            except KeyboardInterrupt:
+                pass
+    return 0
+
+
 def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str], port_arg: Optional[str]) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
@@ -2301,6 +2332,22 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         help=get_message("cli_help_help", language),
     )
 
+    settings_parser = subparsers.add_parser(
+        "settings",
+        help=get_message("cli_settings_help", language),
+        description=get_message("cli_settings_help", language),
+        add_help=False,
+        messages=language_messages,
+    )
+    settings_parser.prog = f"{parser.prog} settings"
+    settings_parser._optionals.title = get_message("cli_optionals_title", language)
+    settings_parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=get_message("cli_help_help", language),
+    )
+
     update_parser = subparsers.add_parser(
         "update",
         help=get_message("cli_update_help", language),
@@ -2361,6 +2408,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return run_peers_command()
     if getattr(args, "command", None) == "history":
         return run_history_command()
+    if getattr(args, "command", None) == "settings":
+        return run_settings_command()
     if getattr(args, "command", None) == "update":
         return run_update_command()
     if getattr(args, "command", None) == "receive":
