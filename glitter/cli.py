@@ -13,7 +13,7 @@ import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Set, Union
 from urllib.error import URLError
 from urllib.request import urlopen
 
@@ -54,6 +54,49 @@ from .utils import (
     format_size,
     seconds_since,
 )
+
+MIN_PROGRESS_RATE_WINDOW = 0.1
+
+AUTO_ACCEPT_MODE_ALIASES = {
+    "0": "off",
+    "off": "off",
+    "n": "off",
+    "no": "off",
+    "none": "off",
+    "disable": "off",
+    "disabled": "off",
+    "关闭": "off",
+    "否": "off",
+    "fou": "off",
+    "1": "trusted",
+    "trusted": "trusted",
+    "trustedonly": "trusted",
+    "trusted_only": "trusted",
+    "t": "trusted",
+    "y": "trusted",
+    "yes": "trusted",
+    "true": "trusted",
+    "on": "trusted",
+    "是": "trusted",
+    "shi": "trusted",
+    "仅信任": "trusted",
+    "2": "all",
+    "all": "all",
+    "a": "all",
+    "any": "all",
+    "full": "all",
+    "全部": "all",
+    "全": "all",
+}
+
+
+def normalize_auto_accept_mode(value: Optional[str]) -> Optional[str]:
+    if value is None:
+        return None
+    key = value.strip().lower()
+    if not key:
+        return None
+    return AUTO_ACCEPT_MODE_ALIASES.get(key)
 
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/scarletkc/glitter/refs/heads/main/glitter/__init__.py"
 
@@ -178,15 +221,15 @@ class ProgressTracker:
         if self._start_time is None:
             self._start_time = now
         start_time = self._start_time
-        elapsed = max(now - start_time, 1e-9)
+        elapsed = max(now - start_time, MIN_PROGRESS_RATE_WINDOW)
         if self._last_time is None or transferred < self._last_bytes:
             rate = transferred / elapsed if elapsed > 0 else 0.0
         else:
-            time_delta = max(now - self._last_time, 0.1)
+            time_delta = max(now - self._last_time, MIN_PROGRESS_RATE_WINDOW)
             byte_delta = transferred - self._last_bytes
             rate = byte_delta / time_delta if time_delta > 0 else 0.0
         if force:
-            rate = transferred / max(elapsed, 0.1)
+            rate = transferred / max(elapsed, MIN_PROGRESS_RATE_WINDOW)
         message = render_message(
             "progress_line",
             self._language,
@@ -1684,36 +1727,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
             if not answer:
                 show_message(ui, "operation_cancelled", language)
                 continue
-            normalized = answer.replace(" ", "")
-            mapping = {
-                "0": "off",
-                "off": "off",
-                "n": "off",
-                "none": "off",
-                "disable": "off",
-                "否": "off",
-                "fou": "off",
-                "关闭": "off",
-                "no": "off",
-                "2": "all",
-                "all": "all",
-                "a": "all",
-                "any": "all",
-                "全部": "all",
-                "全": "all",
-                "1": "trusted",
-                "trusted": "trusted",
-                "t": "trusted",
-                "y": "trusted",
-                "yes": "trusted",
-                "true": "trusted",
-                "on": "trusted",
-                "仅信任": "trusted",
-                "trustedonly": "trusted",
-                "是": "trusted",
-                "shi": "trusted",
-            }
-            desired_mode = mapping.get(normalized)
+            desired_mode = normalize_auto_accept_mode(answer)
             if desired_mode is None:
                 show_message(ui, "invalid_choice", language)
                 continue
@@ -2063,6 +2077,101 @@ def run_history_command() -> int:
     return 0
 
 
+def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str]) -> int:
+    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app, config, ui, language = initialize_application(debug)
+
+    effective_mode = config.auto_accept_trusted if isinstance(config.auto_accept_trusted, str) else "off"
+    if mode_arg is not None:
+        normalized_mode = normalize_auto_accept_mode(mode_arg)
+        if normalized_mode is None:
+            show_message(ui, "receive_mode_invalid", language, value=mode_arg)
+            return 1
+        effective_mode = normalized_mode
+
+    if effective_mode not in {"trusted", "all"}:
+        show_message(ui, "receive_mode_off_disabled", language)
+        return 1
+
+    temp_dir: Optional[Path] = None
+    if dir_arg:
+        try:
+            candidate = Path(dir_arg).expanduser()
+            if not candidate.is_absolute():
+                candidate = (Path.cwd() / candidate).resolve()
+        except Exception as exc:  # noqa: BLE001
+            ui.print(render_message("receive_dir_error", language, error=exc))
+            return 1
+        try:
+            candidate.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            ui.print(render_message("receive_dir_error", language, error=exc))
+            return 1
+        temp_dir = candidate
+
+    if temp_dir:
+        app.set_default_download_dir(temp_dir)
+        ui.print(render_message("receive_dir_set", language, path=str(temp_dir)))
+
+    app.set_auto_accept_mode(effective_mode)
+    mode_label = get_message(f"settings_auto_accept_state_{effective_mode}", language)
+
+    if effective_mode == "all":
+        ui.print(render_message("settings_auto_accept_all_warning", language))
+
+    try:
+        app.start()
+    except OSError as exc:
+        failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
+        ui.print(
+            render_message(
+                "settings_port_failed",
+                language,
+                port=failure_port,
+                error=exc,
+            )
+        )
+        app.stop()
+        return 1
+
+    ui.print(render_message("receive_waiting", language, mode=mode_label))
+    manual_announced: Set[str] = set()
+
+    try:
+        while True:
+            tickets = app.pending_requests()
+            if effective_mode == "trusted":
+                for ticket in tickets:
+                    if ticket.identity_status == "trusted":
+                        continue
+                    if ticket.request_id in manual_announced:
+                        continue
+                    display_name = ticket.filename + ("/" if ticket.content_type == "directory" else "")
+                    ui.print(
+                        render_message(
+                            "receive_manual_notice",
+                            language,
+                            filename=display_name,
+                            name=ticket.sender_name,
+                            ip=ticket.sender_ip,
+                        )
+                    )
+                    manual_announced.add(ticket.request_id)
+            time.sleep(0.5)
+    except KeyboardInterrupt:
+        ui.blank()
+        show_message(ui, "receive_shutdown", language)
+    finally:
+        try:
+            app.cancel_pending_requests()
+        finally:
+            try:
+                app.stop()
+            except KeyboardInterrupt:
+                pass
+    return 0
+
+
 def build_parser(language: str) -> argparse.ArgumentParser:
     language_messages = MESSAGES.get(language, MESSAGES["en"])
     parser = LocalizedArgumentParser(
@@ -2150,6 +2259,30 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         action="help",
         help=get_message("cli_help_help", language),
     )
+
+    receive_parser = subparsers.add_parser(
+        "receive",
+        help=get_message("cli_receive_help", language),
+        description=get_message("cli_receive_help", language),
+        add_help=False,
+        messages=language_messages,
+    )
+    receive_parser.prog = f"{parser.prog} receive"
+    receive_parser._optionals.title = get_message("cli_optionals_title", language)
+    receive_parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=get_message("cli_help_help", language),
+    )
+    receive_parser.add_argument(
+        "--mode",
+        help=get_message("cli_receive_mode_help", language),
+    )
+    receive_parser.add_argument(
+        "--dir",
+        help=get_message("cli_receive_dir_help", language),
+    )
     return parser
 
 
@@ -2167,6 +2300,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return run_peers_command()
     if getattr(args, "command", None) == "history":
         return run_history_command()
+    if getattr(args, "command", None) == "receive":
+        return run_receive_command(getattr(args, "mode", None), getattr(args, "dir", None))
     return run_cli()
 
 

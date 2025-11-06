@@ -80,8 +80,9 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
 - `glitter send <peer|IP[:port]> <path>` — Send a file or directory directly without the menu (peer ID or manual IP).  
 - `glitter peers` — List peers currently discovered on the LAN.
 - `glitter history` — Print recent transfer history records.
+- `glitter receive [--mode trusted|all] [--dir PATH]` — Run in auto-receive mode (trusted/all) without opening the menu.
 
-Tip: once the initial setup is complete, you can keep Glitter running headlessly with your favourite process manager (`uv run`, `systemd`, `pm2`, ...). Pick an auto-accept mode in the settings menu: `Off`, `Trusted only`, or `All`.
+Tip: once the initial setup is complete, you can keep Glitter running headlessly with your favourite process manager (`uv run`, `systemd`, `pm2`, ...). 
 
 ## Files & Persistence
 

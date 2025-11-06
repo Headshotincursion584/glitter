@@ -80,8 +80,9 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 - `glitter send <Peer ID 或 IP[:端口]> <路径>` — 快速发送文件或目录，无需进入菜单。  
 - `glitter peers` — 列出当前发现的局域网客户端。
 - `glitter history` — 打印最近的传输记录。
+- `glitter receive [--mode trusted|all] [--dir 路径]` — 在自动接收模式下运行，无需进入菜单。
 
-提示：完成初始化后，可将 Glitter 交给 `uv run`、systemd、pm2 等进程管理器，让其在后台持续运行。设置菜单支持三档自动接收模式：`关闭`、`仅限已信任`、`全部`。
+提示：完成初始化后，可将 Glitter 交给 `uv run`、systemd、pm2 等进程管理器，让其在后台持续运行。
 
 ## 文件与持久化
 
