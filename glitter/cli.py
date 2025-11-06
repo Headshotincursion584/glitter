@@ -2077,7 +2077,7 @@ def run_history_command() -> int:
     return 0
 
 
-def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str]) -> int:
+def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str], port_arg: Optional[str]) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
 
@@ -2112,6 +2112,28 @@ def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str]) -> int:
     if temp_dir:
         app.set_default_download_dir(temp_dir)
         ui.print(render_message("receive_dir_set", language, path=str(temp_dir)))
+
+    if port_arg:
+        try:
+            desired_port = int(port_arg)
+        except ValueError:
+            show_message(ui, "settings_port_invalid", language)
+            return 1
+        try:
+            app.change_transfer_port(desired_port)
+        except ValueError:
+            show_message(ui, "settings_port_invalid", language)
+            return 1
+        except OSError as exc:
+            ui.print(
+                render_message(
+                    "settings_port_failed",
+                    language,
+                    port=desired_port,
+                    error=exc,
+                )
+            )
+            return 1
 
     app.set_auto_accept_mode(effective_mode)
     mode_label = get_message(f"settings_auto_accept_state_{effective_mode}", language)
@@ -2283,6 +2305,10 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         "--dir",
         help=get_message("cli_receive_dir_help", language),
     )
+    receive_parser.add_argument(
+        "--port",
+        help=get_message("cli_receive_port_help", language),
+    )
     return parser
 
 
@@ -2301,7 +2327,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if getattr(args, "command", None) == "history":
         return run_history_command()
     if getattr(args, "command", None) == "receive":
-        return run_receive_command(getattr(args, "mode", None), getattr(args, "dir", None))
+        return run_receive_command(getattr(args, "mode", None), getattr(args, "dir", None), getattr(args, "port", None))
     return run_cli()
 
 
