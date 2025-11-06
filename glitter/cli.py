@@ -1562,6 +1562,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
             f"settings_auto_accept_state_{app.auto_accept_mode}",
             language,
         )
+        local_ips = ", ".join(local_network_addresses())
         ui.print(
             render_message(
                 "settings_header",
@@ -1572,6 +1573,7 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
                 port=app.transfer_port,
                 encryption=encryption_label,
                 auto_accept=auto_accept_label,
+                ips=local_ips,
             )
         )
         show_message(ui, "settings_options", language)
