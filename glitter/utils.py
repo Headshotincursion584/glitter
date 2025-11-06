@@ -89,3 +89,38 @@ def flush_input_buffer() -> None:
             termios.tcflush(sys.stdin, termios.TCIFLUSH)
     except Exception:  # noqa: BLE001
         pass
+
+
+def local_network_addresses() -> list[str]:
+    """Return a sorted list of non-loopback local IP addresses (best effort)."""
+
+    addresses: set[str] = set()
+
+    def _add(address: str) -> None:
+        if not address:
+            return
+        if address.startswith("127.") or address == "::1":
+            return
+        addresses.add(address)
+
+    for family, destination in (
+        (socket.AF_INET, ("8.8.8.8", 80)),
+        (socket.AF_INET6, ("2001:4860:4860::8888", 80)),
+    ):
+        try:
+            with socket.socket(family, socket.SOCK_DGRAM) as sock:
+                sock.connect(destination)
+                local_ip = sock.getsockname()[0]
+                _add(local_ip)
+        except OSError:
+            continue
+
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None):
+            _add(info[4][0])
+    except OSError:
+        pass
+
+    if not addresses:
+        return ["127.0.0.1"]
+    return sorted(addresses)

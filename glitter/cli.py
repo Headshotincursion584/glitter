@@ -54,6 +54,7 @@ from .utils import (
     flush_input_buffer,
     format_rate,
     format_size,
+    local_network_addresses,
     seconds_since,
 )
 
@@ -2354,7 +2355,17 @@ def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str], port_ar
         app.stop()
         return 1
 
-    ui.print(render_message("receive_waiting", language, mode=mode_label))
+    local_ips = ", ".join(local_network_addresses())
+    ui.print(
+        render_message(
+            "receive_waiting",
+            language,
+            mode=mode_label,
+            device=app.device_name,
+            port=app.transfer_port,
+            ips=local_ips,
+        )
+    )
 
     try:
         while True:
