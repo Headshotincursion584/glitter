@@ -2077,6 +2077,22 @@ def run_history_command() -> int:
     return 0
 
 
+def run_update_command() -> int:
+    debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
+    app, _, ui, language = initialize_application(debug)
+    try:
+        show_updates(ui, language)
+    finally:
+        try:
+            app.cancel_pending_requests()
+        finally:
+            try:
+                app.stop()
+            except KeyboardInterrupt:
+                pass
+    return 0
+
+
 def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str], port_arg: Optional[str]) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
@@ -2282,6 +2298,22 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         help=get_message("cli_help_help", language),
     )
 
+    update_parser = subparsers.add_parser(
+        "update",
+        help=get_message("cli_update_help", language),
+        description=get_message("cli_update_help", language),
+        add_help=False,
+        messages=language_messages,
+    )
+    update_parser.prog = f"{parser.prog} update"
+    update_parser._optionals.title = get_message("cli_optionals_title", language)
+    update_parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=get_message("cli_help_help", language),
+    )
+
     receive_parser = subparsers.add_parser(
         "receive",
         help=get_message("cli_receive_help", language),
@@ -2326,6 +2358,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         return run_peers_command()
     if getattr(args, "command", None) == "history":
         return run_history_command()
+    if getattr(args, "command", None) == "update":
+        return run_update_command()
     if getattr(args, "command", None) == "receive":
         return run_receive_command(getattr(args, "mode", None), getattr(args, "dir", None), getattr(args, "port", None))
     return run_cli()
