@@ -76,7 +76,7 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
 
 ## Usage
 
-- `glitter` — Launch the interactive menu (list peers, send/receive requests, view history, configure download/encryption/auto-accept modes, etc.).
+- **`glitter`** — Launch the interactive menu (list peers, send/receive requests, view history, configure download/encryption/auto-accept modes, etc.).
 - `glitter send <peer|IP[:port]> <path>` — Send a file or directory directly without the menu (peer ID or manual IP).  
 - `glitter peers` — List peers currently discovered on the LAN.
 - `glitter history [--clear]` — Print recent transfer history records, or clear them instantly.
