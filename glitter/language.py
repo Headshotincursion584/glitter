@@ -14,7 +14,7 @@ LANGUAGES: Dict[str, str] = {
 
 MESSAGES: Dict[str, Dict[str, str]] = {
     "en": {
-        "welcome": "Welcome to Glitter — LAN file transfer.",
+        "welcome": "Welcome to Glitter — file transfer.",
         "icon": """
              @@@@@@@@@@@@@@             
          @@@@@@@@@@@@@@@@@@@@@@         
@@ -42,7 +42,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "select_language": "Select interface language:",
         "prompt_language_choice": "Enter language code [{default}]: ",
         "prompt_device_name": "Enter device name [{default}]: ",
-        "cli_description": "Glitter LAN file transfer CLI",
+        "cli_description": "Glitter file transfer CLI",
         "cli_usage": "%(prog)s [command]",
         "cli_usage_prefix": "usage:",
         "cli_error": "Error: {error}",
@@ -173,7 +173,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "receive_shutdown": "Stopping receive service...",
     },
     "zh": {
-        "welcome": "欢迎使用 Glitter 局域网文件传输。",
+        "welcome": "欢迎使用 Glitter 文件传输。",
         "icon": """
              @@@@@@@@@@@@@@             
          @@@@@@@@@@@@@@@@@@@@@@         
@@ -201,7 +201,7 @@ MESSAGES: Dict[str, Dict[str, str]] = {
         "select_language": "请选择界面语言：",
         "prompt_language_choice": "输入语言代码 [{default}]：",
         "prompt_device_name": "请输入设备名称 [{default}]：",
-        "cli_description": "Glitter 局域网文件传输 CLI",
+        "cli_description": "Glitter 文件传输 CLI",
         "cli_usage": "%(prog)s [命令]",
         "cli_usage_prefix": "用法:",
         "cli_error": "错误: {error}",
