@@ -2117,26 +2117,80 @@ def run_update_command() -> int:
     return 0
 
 
-def run_settings_command() -> int:
+def run_settings_command(language_arg: Optional[str], device_name_arg: Optional[str], clear_trust: bool) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
-    try:
-        app.start()
-    except OSError as exc:
-        failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
-        ui.print(
-            render_message(
-                "settings_port_failed",
-                language,
-                port=failure_port,
-                error=exc,
+
+    exit_code = 0
+    direct_mode = any([language_arg, device_name_arg, clear_trust])
+    app_started = False
+
+    if not direct_mode:
+        try:
+            app.start()
+            app_started = True
+        except OSError as exc:
+            failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
+            ui.print(
+                render_message(
+                    "settings_port_failed",
+                    language,
+                    port=failure_port,
+                    error=exc,
+                )
             )
-        )
-        app.stop()
-        return 1
+            app.stop()
+            return 1
 
     try:
-        settings_menu(ui, app, config, language)
+        if direct_mode:
+            if language_arg:
+                candidate = language_arg.strip().lower()
+                if candidate not in LANGUAGES:
+                    codes = ", ".join(sorted(LANGUAGES))
+                    ui.print(
+                        render_message(
+                            "settings_language_invalid",
+                            language,
+                            value=language_arg,
+                            codes=codes,
+                        )
+                    )
+                    exit_code = 1
+                elif candidate == (config.language or language):
+                    show_message(ui, "operation_cancelled", language)
+                else:
+                    config.language = candidate
+                    save_config(config)
+                    app.update_identity(config.device_name or app.device_name, candidate)
+                    language = candidate
+                    lang_name = LANGUAGES.get(candidate, candidate)
+                    ui.print(
+                        render_message(
+                            "settings_language_updated",
+                            language,
+                            language_name=lang_name,
+                        )
+                    )
+            if device_name_arg is not None:
+                new_name = device_name_arg.strip()
+                if not new_name:
+                    ui.print(render_message("settings_device_invalid", language))
+                    exit_code = 1
+                elif new_name == (config.device_name or app.device_name):
+                    show_message(ui, "operation_cancelled", language)
+                else:
+                    config.device_name = new_name
+                    save_config(config)
+                    app.update_identity(new_name, language)
+                    ui.print(render_message("settings_device_updated", language, name=new_name))
+            if clear_trust:
+                if app.clear_trusted_fingerprints():
+                    show_message(ui, "settings_trust_cleared", language)
+                else:
+                    show_message(ui, "operation_cancelled", language)
+        else:
+            settings_menu(ui, app, config, language)
     finally:
         try:
             app.cancel_pending_requests()
@@ -2145,7 +2199,7 @@ def run_settings_command() -> int:
                 app.stop()
             except KeyboardInterrupt:
                 pass
-    return 0
+    return exit_code
 
 
 def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str], port_arg: Optional[str], *, no_encryption: bool = False) -> int:
@@ -2256,6 +2310,7 @@ def run_receive_command(mode_arg: Optional[str], dir_arg: Optional[str], port_ar
 
 def build_parser(language: str) -> argparse.ArgumentParser:
     language_messages = MESSAGES.get(language, MESSAGES["en"])
+    language_codes = ", ".join(sorted(LANGUAGES))
     parser = LocalizedArgumentParser(
         prog="glitter",
         description=get_message("cli_description", language),
@@ -2357,6 +2412,19 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         action="help",
         help=get_message("cli_help_help", language),
     )
+    settings_parser.add_argument(
+        "--language",
+        help=get_message("cli_settings_language_help", language, codes=language_codes),
+    )
+    settings_parser.add_argument(
+        "--device-name",
+        help=get_message("cli_settings_device_help", language),
+    )
+    settings_parser.add_argument(
+        "--clear-trust",
+        action="store_true",
+        help=get_message("cli_settings_clear_trust_help", language),
+    )
 
     update_parser = subparsers.add_parser(
         "update",
@@ -2424,7 +2492,11 @@ def main(argv: Optional[list[str]] = None) -> int:
     if getattr(args, "command", None) == "history":
         return run_history_command()
     if getattr(args, "command", None) == "settings":
-        return run_settings_command()
+        return run_settings_command(
+            getattr(args, "language", None),
+            getattr(args, "device_name", None),
+            bool(getattr(args, "clear_trust", False)),
+        )
     if getattr(args, "command", None) == "update":
         return run_update_command()
     if getattr(args, "command", None) == "receive":

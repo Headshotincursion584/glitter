@@ -80,7 +80,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 - `glitter send <Peer ID 或 IP[:端口]> <路径>` — 快速发送文件或目录，无需进入菜单。  
 - `glitter peers` — 列出当前发现的局域网客户端。
 - `glitter history` — 打印最近的传输记录。
-- `glitter settings` — 直接进入交互式设置菜单。
+- `glitter settings [--language 代码] [--device-name 名称] [--clear-trust]` — 直接进入设置界面，或一次性完成语言切换、设备改名、清空信任指纹等操作。
 - `glitter update` — 检查最新的 Glitter 版本。
 - `glitter receive [--mode trusted|all] [--dir 路径] [--port 端口] [--no-encryption]` — 在自动接收模式下运行，无需进入菜单。
 
