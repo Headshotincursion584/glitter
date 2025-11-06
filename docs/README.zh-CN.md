@@ -85,8 +85,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   - [6] 设置：修改语言/设备名/端口/加密、默认接收目录、空闲时自动接收可信设备，清空历史或信任指纹
   - [7] 退出
 - `glitter send <IP[:端口]> <路径>` — 快速发送，无需进入菜单
-  - 示例：`glitter send 192.168.1.20 ~/Downloads/demo.zip`
-  - IPv6：`glitter send "[fe80::abcd]:45846" ./folder`
+  - 示例：`glitter send 192.168.1.20 ~/Downloads/demo.zip` IPv6：`glitter send "[fe80::abcd]:45846" ./folder`
   - 与交互式流程共享同样的进度展示与历史记录（接收方需运行菜单确认）
 - 需要常驻后台？完成初始化后，可交给 `uv run`、systemd、pm2 等进程管理器.
 

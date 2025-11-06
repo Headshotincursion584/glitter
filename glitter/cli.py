@@ -1923,12 +1923,25 @@ def build_parser(language: str) -> argparse.ArgumentParser:
     parser = LocalizedArgumentParser(
         prog="glitter",
         description=get_message("cli_description", language),
-        add_help=True,
+        add_help=False,
         messages=language_messages,
     )
     parser.usage = get_message("cli_usage", language)
     parser._positionals.title = get_message("cli_positionals_title", language)
     parser._optionals.title = get_message("cli_optionals_title", language)
+    parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=get_message("cli_help_help", language),
+    )
+    parser.add_argument(
+        "-V",
+        "--version",
+        action="version",
+        help=get_message("cli_version_help", language),
+        version=get_message("cli_version_output", language, version=__version__),
+    )
     subparsers = parser.add_subparsers(
         dest="command",
         title=get_message("cli_commands_title", language),
@@ -1939,12 +1952,19 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         "send",
         help=get_message("cli_send_help", language),
         description=get_message("cli_send_help", language),
+        add_help=False,
         messages=language_messages,
     )
     send_parser.prog = f"{parser.prog} send"
     send_parser.usage = get_message("cli_send_usage", language)
     send_parser._positionals.title = get_message("cli_positionals_title", language)
     send_parser._optionals.title = get_message("cli_optionals_title", language)
+    send_parser.add_argument(
+        "-h",
+        "--help",
+        action="help",
+        help=get_message("cli_help_help", language),
+    )
     send_parser.add_argument(
         "target",
         help=get_message("cli_send_target_help", language),

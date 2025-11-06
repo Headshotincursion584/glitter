@@ -85,8 +85,7 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
   - [6] Settings: Change language/device name/port/encryption, choose default receive directory, toggle auto-accept trusted transfers, clear history or trusted fingerprints  
   - [7] Quit: Exit the program
 - `glitter send <IP[:port]> <path>` — direct send without entering the menu  
-  - Example: `glitter send 192.168.1.20 ~/Downloads/demo.zip`  
-  - IPv6: `glitter send "[fe80::abcd]:45846" ./folder`  
+  - Example: `glitter send 192.168.1.20 ~/Downloads/demo.zip` IPv6: `glitter send "[fe80::abcd]:45846" ./folder`  
   - Reuses the same progress display and history logging as the interactive flow (the receiver needs the menu running to approve)
 - Want to keep it running headlessly? Wrap the same command with `uv run`, `systemd`, `pm2`, etc. once the initial setup is done.
 
