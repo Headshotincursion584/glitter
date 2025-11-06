@@ -5,8 +5,8 @@
 # Glitter — 简洁的文件传输 CLI
 
 [![PyPI](https://img.shields.io/pypi/v/glitter-cli.svg)](https://pypi.org/project/glitter-cli/)
-![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
-[![License](https://img.shields.io/github/license/scarletkc/glitter.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+[![License](https://img.shields.io/github/license/scarletkc/glitter.svg)](https://github.com/scarletkc/glitter/blob/main/LICENSE)
 
 [English](https://github.com/scarletkc/glitter/blob/main/README.md) | **[中文](https://github.com/scarletkc/glitter/blob/main/docs/README.zh-CN.md)**
 
