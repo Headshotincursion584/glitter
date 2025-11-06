@@ -1913,40 +1913,57 @@ def run_send_command(target: str, file_path_arg: str) -> int:
 
     exit_code = 0
     try:
-        default_port = app.transfer_port
-        target_info = parse_target_spec(target, default_port)
-        if not target_info:
-            show_message(ui, "invalid_peer_target", language)
-            return 1
-
-        normalized_ip = target_info.get("normalized_ip")
+        peers = app.list_peers()
+        target_info_prefetched: Optional[dict[str, object]] = None
+        target_ip_candidate = parse_target_spec(target, app.transfer_port)
+        if target_ip_candidate:
+            target_info_prefetched = target_ip_candidate
+        elif target.isdigit():
+            if not peers:
+                time.sleep(2.5)
+                peers = app.list_peers()
         manual_info: Optional[dict[str, object]] = None
         selected_peer: Optional[PeerInfo] = None
-        if isinstance(normalized_ip, str):
-            peers = app.list_peers()
-            selected_peer = next(
-                (
-                    peer
-                    for peer in peers
-                    if peer.ip == normalized_ip and peer.transfer_port == target_info["port"]
-                ),
-                None,
-            )
-            if not selected_peer:
-                cached_peer_id = app.cached_peer_id_for_ip(normalized_ip)
-                peer_identifier = cached_peer_id or f"manual:{normalized_ip}:{target_info['port']}"
-                selected_peer = PeerInfo(
-                    peer_id=peer_identifier,
-                    name=str(target_info.get("display") or target),
-                    ip=target_info["ip"],
-                    transfer_port=target_info["port"],
-                    language=language,
-                    version=__version__,
-                    last_seen=time.time(),
+
+        if target.isdigit() and peers:
+            index = int(target) - 1
+            if 0 <= index < len(peers):
+                selected_peer = peers[index]
+        else:
+            selected_peer = None
+
+        if not selected_peer:
+            default_port = app.transfer_port
+            target_info = target_info_prefetched or parse_target_spec(target, default_port)
+            if not target_info:
+                show_message(ui, "invalid_peer_target", language)
+                return 1
+
+            normalized_ip = target_info.get("normalized_ip")
+            if isinstance(normalized_ip, str):
+                selected_peer = next(
+                    (
+                        peer
+                        for peer in peers
+                        if peer.ip == normalized_ip and peer.transfer_port == target_info["port"]
+                    ),
+                    None,
                 )
-                if cached_peer_id:
-                    selected_peer.peer_id = cached_peer_id
-                manual_info = target_info
+                if not selected_peer:
+                    cached_peer_id = app.cached_peer_id_for_ip(normalized_ip)
+                    peer_identifier = cached_peer_id or f"manual:{normalized_ip}:{target_info['port']}"
+                    selected_peer = PeerInfo(
+                        peer_id=peer_identifier,
+                        name=str(target_info.get("display") or target),
+                        ip=target_info["ip"],
+                        transfer_port=target_info["port"],
+                        language=language,
+                        version=__version__,
+                        last_seen=time.time(),
+                    )
+                    if cached_peer_id:
+                        selected_peer.peer_id = cached_peer_id
+                    manual_info = target_info
 
         if not selected_peer:
             show_message(ui, "invalid_peer_target", language)
