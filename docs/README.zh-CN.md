@@ -78,7 +78,8 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   
 </details>
 
-### 从源码安装
+<details>
+  <summary>从源码安装</summary>
 
 要求：安装[依赖](https://github.com/scarletkc/glitter/blob/main/requirements.txt)
 
@@ -87,6 +88,8 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   - `pip install -r requirements.txt`
   - `python3 -m glitter`
    - `git pull` # 更新
+  
+</details>
 
 ## 用法
 

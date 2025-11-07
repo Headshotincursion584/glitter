@@ -54,7 +54,6 @@ On first run, Glitter asks for language and device name and saves them. Next run
 - Compilation: [binary](https://github.com/scarletkc/glitter/releases)
 - Firewall: Allow UDP 45845 and TCP 45846 (transfer port) for the app if discovery/transfer is blocked.
 
-
 ### Run Glitter instantly with [uv](https://docs.astral.sh/uv/)
 ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -79,7 +78,8 @@ Recommended to install and run via [pipx](https://pipx.pypa.io/stable/):
   
 </details>
 
-### From source
+<details>
+  <summary>From source</summary>
 
 Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requirements.txt)
 
@@ -88,6 +88,8 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
   - `pip install -r requirements.txt`
   - `python3 -m glitter`
    - `git pull` # to update
+
+</details>
 
 ## Usage
 
