@@ -49,6 +49,13 @@ Glitter provides a **simple, terminal-based** alternative to GUI tools and compl
 
 ## Quick Start
 
+- Run Glitter instantly with uv 
+  
+```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  uv run glitter-cli
+```
+
 On first run, Glitter asks for language and device name and saves them. Next runs go straight to the main menu.
 
 - Compilation: [binary](https://github.com/scarletkc/glitter/releases)
@@ -92,7 +99,7 @@ Requirements: install [deps](https://github.com/scarletkc/glitter/blob/main/requ
 - `glitter update` — Check the latest available Glitter version.
 - `glitter receive [--mode trusted|all] [--dir PATH] [--port PORT] [--no-encryption]` — Run in auto-receive mode (trusted/all) without opening the menu.
 
-Tip: once the initial setup is complete, you can keep Glitter running headlessly with your favourite process manager (`uv run`, `systemd`, `pm2`, ...). 
+Tip: once the initial setup is complete, you can keep Glitter running headlessly with your favourite process manager (`systemd`, `pm2`, ...). 
 
 ## Files & Persistence
 

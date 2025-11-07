@@ -49,6 +49,13 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 
 ## 快速开始
 
+- 通过 uv 一键运行
+
+```bash
+  curl -LsSf https://astral.sh/uv/install.sh | sh
+  uv run glitter-cli
+```
+
 首次启动会提示选择语言与设备名称并保存。之后启动将直接进入主菜单。
 
 - 二进制文件： [直接下载使用](https://github.com/scarletkc/glitter/releases)
@@ -92,7 +99,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
 - `glitter update` — 检查最新的 Glitter 版本。
 - `glitter receive [--mode trusted|all] [--dir 路径] [--port 端口] [--no-encryption]` — 在自动接收模式下运行，无需进入菜单。
 
-提示：完成初始化后，可将 Glitter 交给 `uv run`、systemd、pm2 等进程管理器，让其在后台持续运行。
+提示：完成初始化后，可将 Glitter 交给 systemd、pm2 等进程管理器，让其在后台持续运行。
 
 ## 文件与持久化
 
