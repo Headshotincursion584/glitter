@@ -1,4 +1,4 @@
-## Glitter CI/CD 流程图
+# Glitter CI/CD 流程图
 
 ## 完整流程
 ```
