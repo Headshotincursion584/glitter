@@ -55,7 +55,7 @@ On first run, Glitter asks for language and device name and saves them. Next run
 - Firewall: Allow UDP 45845 and TCP 45846 (transfer port) for the app if discovery/transfer is blocked.
 
 
-### Run Glitter instantly with uv
+### Run Glitter instantly with [uv](https://docs.astral.sh/uv/)
 ```bash
   curl -LsSf https://astral.sh/uv/install.sh | sh
   uv run glitter
