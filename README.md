@@ -33,7 +33,7 @@ Glitter provides a **simple, terminal-based** alternative to GUI tools and compl
 
 | Tool | Pros | Cons | Glitter Advantage |
 |------|------|------|-------------------|
-| **LocalSend** | Beautiful GUI, cross-platform | Requires GUI environment, ~100MB+ install | **CLI-first**: works via SSH, lightweight (~50KB), scriptable |
+| **LocalSend** | Beautiful GUI, cross-platform | Requires GUI environment, ~100MB+ install | **CLI-first**: works via SSH, lightweight (~1MB), scriptable |
 | **Magic Wormhole** | Simple one-time codes | Requires relay server, single-file only | **LAN-direct**: no internet needed, auto-discovery, no codes to type |
 | **SFTP/SCP** | Universal, encrypted | Needs SSH server setup, manual IP entry | **Zero-config**: auto-discovers peers, no server setup |
 | **rsync** | Powerful sync engine | Complex syntax, requires remote shell access | **Interactive**: menu-driven, progress bars, history tracking |
