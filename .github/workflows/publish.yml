@@ -8,7 +8,7 @@ on:
 
 jobs:
   pytest:
-    name: Pytest (${{ matrix.os }})
+    name: Pytest (ubuntu-latest)
     runs-on: ubuntu-latest
     strategy:
       matrix:
