@@ -136,7 +136,8 @@ jobs:
           tag_name: v${{ needs.prepare.outputs.version }}
           name: Glitter v${{ needs.prepare.outputs.version }}
           draft: false
-          prerelease: false
+          # Mark prerelease automatically for versions like 1.2.3a1 / 1.2.3b1 / 1.2.3rc1
+          prerelease: ${{ contains(needs.prepare.outputs.version, 'a') || contains(needs.prepare.outputs.version, 'b') || contains(needs.prepare.outputs.version, 'rc') }}
           files: release/*
           body: |
             Automated release for Glitter v${{ needs.prepare.outputs.version }}.
