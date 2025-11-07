@@ -25,7 +25,7 @@ jobs:
         with:
           fetch-depth: 2
 
-      - name: Detect version change
+      - name: Detect doc-only changes
         id: detect
         shell: bash
         run: |
@@ -42,17 +42,31 @@ jobs:
             BASE_REF="HEAD^"
           fi
 
-          if git diff --quiet "${BASE_REF}" HEAD -- glitter/__init__.py; then
+          changed_files="$(git diff --name-only "${BASE_REF}" HEAD)"
+          if [ -z "${changed_files}" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          doc_only=true
+          while IFS= read -r file; do
+            if [[ "$file" == *.py ]]; then
+              doc_only=false
+              break
+            fi
+          done <<< "${changed_files}"
+
+          if [ "${doc_only}" = true ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Version unchanged (skip)
+      - name: Docs-only changes (skip)
         if: steps.detect.outputs.changed != 'true'
         shell: bash
         run: |
-          echo "glitter/__init__.py unchanged; skipping tests."
+          echo "Only documentation files changed; skipping tests."
 
       - name: Setup Python
         if: steps.detect.outputs.changed == 'true'
