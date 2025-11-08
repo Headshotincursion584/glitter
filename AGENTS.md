@@ -2,10 +2,11 @@
 
 ## Project Structure & Module Organization
 - `glitter/` — Source package:
-  - `cli.py` (entrypoint `main()` and subcommands), `config.py` (settings),
-    `discovery.py` (UDP peer discovery), `transfer.py` (TCP + crypto),
-    `security.py` (keys), `trust.py` (TOFU store), `history.py` (JSONL),
-    `language.py` (i18n), `utils.py` (helpers).
+  - `cli.py` (entrypoint `main()`/argparse glue), `app.py` (discovery/transfer orchestrator),
+    `config.py` (settings), `discovery.py` (UDP peer discovery),
+    `transfer.py` (TCP + crypto), `security.py` (keys), `trust.py` (TOFU store),
+    `history.py` (JSONL), `language.py` (i18n), `ui.py` (rich-based helpers),
+    `utils.py` (misc helpers).
 - `assets/` (logo), `docs/` (additional docs), `.github/workflows/` (CI for PyPI/binaries).
 - Build artifacts: `build/`, `dist/` (generated). Packaging: `pyproject.toml`.
 - Executable spec: `glitter.spec` (PyInstaller).
