@@ -23,7 +23,7 @@ from rich.text import Text
 from . import __version__
 from .app import GlitterApp
 from .config import AppConfig, load_config, resolve_download_dir, save_config
-from .discovery import DISCOVERY_PORT, PeerInfo
+from .discovery import PeerInfo
 from .history import (
     clear_history,
     format_timestamp,
@@ -52,7 +52,6 @@ from .utils import (
     local_network_addresses,
     seconds_since,
 )
-from .firewall import FirewallProbeResult, probe_local_ports
 
 AUTO_ACCEPT_MODE_ALIASES = {
     "0": "off",
@@ -1258,63 +1257,12 @@ def initialize_application(debug: bool) -> tuple[GlitterApp, AppConfig, Terminal
     return app, config, ui, language
 
 
-def maybe_show_firewall_warning(
-    ui: TerminalUI,
-    language: str,
-    config: AppConfig,
-    *,
-    debug: bool = False,
-) -> None:
-    tcp_port = config.transfer_port or DEFAULT_TRANSFER_PORT
-    udp_port = DISCOVERY_PORT
-    try:
-        result = probe_local_ports(tcp_port, udp_port)
-    except Exception as exc:  # noqa: BLE001
-        if debug:
-            ui.print(
-                render_message(
-                    "firewall_probe_details",
-                    language,
-                    details=str(exc),
-                )
-            )
-        return
-
-    if result.tcp_ok and result.udp_ok:
-        return
-
-    ui.print(
-        render_message(
-            "firewall_probe_warning",
-            language,
-            tcp_port=tcp_port,
-            udp_port=udp_port,
-        )
-    )
-
-    if debug:
-        details: list[str] = []
-        if not result.tcp_ok and result.tcp_error:
-            details.append(f"TCP: {result.tcp_error}")
-        if not result.udp_ok and result.udp_error:
-            details.append(f"UDP: {result.udp_error}")
-        if details:
-            ui.print(
-                render_message(
-                    "firewall_probe_details",
-                    language,
-                    details="; ".join(details),
-                )
-            )
-
-
 def run_cli() -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
     show_message(ui, "icon", language)
     show_message(ui, "welcome", language)
     show_message(ui, "current_version", language, version=__version__)
-    maybe_show_firewall_warning(ui, language, config, debug=debug)
     if shutil.which("glitter") is None:
         show_message(ui, "cli_path_warning", language)
     try:
