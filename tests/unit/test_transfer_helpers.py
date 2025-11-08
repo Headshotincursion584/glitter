@@ -31,6 +31,23 @@ def test_prepare_send_file_payload_directory(tmp_path: Path) -> None:
     assert payload.cleanup_path is not None
 
 
+def test_prepare_send_file_payload_rejects_missing(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    with pytest.raises(FileNotFoundError):
+        service._prepare_send_file_payload(tmp_path / "missing.bin")
+
+
+def test_prepare_send_file_payload_symlink_errors(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    target = tmp_path / "target"
+    target.write_text("payload", encoding="utf-8")
+    link = tmp_path / "link"
+    link.symlink_to(target)
+    link.unlink()
+    with pytest.raises(FileNotFoundError):
+        service._prepare_send_file_payload(link)
+
+
 def test_build_sender_metadata_includes_identity(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     service = _service(tmp_path)
     service._identity_public = b"identity"
@@ -101,3 +118,19 @@ def test_evaluate_identity_status_changed(tmp_path: Path) -> None:
 
     assert status == "changed"
     assert previous == "OLD"
+
+
+def test_evaluate_identity_status_missing_payload(tmp_path: Path) -> None:
+    service = _service(tmp_path)
+    status, previous, display = service._evaluate_identity_status(
+        sender_id=None,
+        sender_name="Peer",
+        identity_public=None,
+        identity_hex=None,
+        identity_display=None,
+        identity_payload=None,
+    )
+
+    assert status == "missing"
+    assert previous is None
+    assert display is None
