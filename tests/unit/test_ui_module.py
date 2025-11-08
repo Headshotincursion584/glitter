@@ -51,7 +51,8 @@ def test_progress_tracker_update(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert tracker.update(5, 10) is True
     assert tracker.update(5, 10) is False  # no progress change
-    assert tracker.update(10, 10) is True
+    assert tracker.update(7, 10) is True
+    assert tracker.update(10, 10, force=True) is True
     tracker.finish()
 
     assert ui.blank_calls == 1

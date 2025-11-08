@@ -49,7 +49,9 @@ def test_progress_tracker_updates_and_finishes():
     ui = StubUI()
     tracker = ProgressTracker(ui, "en", min_interval=0)
     tracker.update(512, 1024, force=True)
+    tracker.update(768, 1024)
     tracker.update(1024, 1024, force=True)
     tracker.finish()
     assert any("512" in line for line in ui.lines)
+    assert any("768" in line for line in ui.lines)
     assert ui.lines[-1] == "<blank>"
