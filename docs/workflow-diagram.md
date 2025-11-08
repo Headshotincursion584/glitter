@@ -16,13 +16,13 @@
                      │                    │
                      ▼                    ▼
           ┌────────────────────┐    ┌─────────────────┐
-          │  pytest (ubuntu)   │    │ skip pytest job │
+          │   pytest (linux)   │    │ skip pytest job │
           └──────────┬─────────┘    └─────────────────┘
                      │
                      ▼
           ┌─────────────────────────┐
-          │ push to main & tests    │
-          │      pass?              │
+          │ push to main & codecov  │
+          │   tests pass?           │
           └──────────┬──────────────┘
                      │
                      ▼
