@@ -59,7 +59,7 @@ Glitter 提供了一个**简洁、基于终端**的替代方案，相比 GUI 工
   
 ### 通过 [uv](https://docs.astral.sh/uv/) 一键运行
 ```bash
-  curl -LsSf https://astral.sh/uv/install.sh | sh  # Debian/Ubuntu
+  curl -LsSf https://astral.sh/uv/install.sh | sh
   uv run glitter
 ```
 
