@@ -25,6 +25,7 @@ from .app import GlitterApp
 from .config import AppConfig, load_config, resolve_download_dir, save_config
 from .discovery import PeerInfo
 from .history import (
+    HistoryRecord,
     clear_history,
     format_timestamp,
     load_records,
@@ -890,57 +891,125 @@ def show_updates(ui: TerminalUI, language: str) -> None:
     show_message(ui, "updates_info", language)
 
 
+def _render_history_entry(record: HistoryRecord, language: str) -> Text:
+    time_text = format_timestamp(record.timestamp)
+    size_text = format_size(record.size)
+    if record.status != "completed":
+        direction_label = "SEND" if record.direction == "send" else "RECV"
+        if language == "zh":
+            direction_label = "发送" if record.direction == "send" else "接收"
+        return render_message(
+            "history_entry_failed",
+            language,
+            direction=direction_label,
+            time=time_text,
+            name=record.remote_name,
+            ip=record.remote_ip,
+            filename=record.filename,
+            status=record.status,
+        )
+    if record.direction == "send":
+        return render_message(
+            "history_entry_send",
+            language,
+            time=time_text,
+            name=record.remote_name,
+            ip=record.remote_ip,
+            filename=record.filename,
+            size=size_text,
+        )
+    return render_message(
+        "history_entry_receive",
+        language,
+        time=time_text,
+        name=record.remote_name,
+        ip=record.remote_ip,
+        filename=record.filename,
+        size=size_text,
+        path=record.target_path or "-",
+    )
+
+
+def _iter_history_entries(records: Sequence[HistoryRecord], language: str) -> list[Text]:
+    return [
+        _render_history_entry(record, language)
+        for record in reversed(records)
+    ]
+
+
 def show_history(ui: TerminalUI, language: str, limit: int = 20) -> None:
     records = load_records(limit)
     if not records:
         show_message(ui, "history_empty", language)
         return
     show_message(ui, "history_header", language)
-    for record in reversed(records):
-        time_text = format_timestamp(record.timestamp)
-        size_text = format_size(record.size)
-        if record.status != "completed":
-            direction_label = "SEND" if record.direction == "send" else "RECV"
-            if language == "zh":
-                direction_label = "发送" if record.direction == "send" else "接收"
-            ui.print(
-                render_message(
-                    "history_entry_failed",
-                    language,
-                    direction=direction_label,
-                    time=time_text,
-                    name=record.remote_name,
-                    ip=record.remote_ip,
-                    filename=record.filename,
-                    status=record.status,
-                )
-            )
-            continue
-        if record.direction == "send":
-            ui.print(
-                render_message(
-                    "history_entry_send",
-                    language,
-                    time=time_text,
-                    name=record.remote_name,
-                    ip=record.remote_ip,
-                    filename=record.filename,
-                    size=size_text,
-                )
-            )
-        else:
-            ui.print(
-                render_message(
-                    "history_entry_receive",
-                    language,
-                    time=time_text,
-                    name=record.remote_name,
-                    ip=record.remote_ip,
-                    filename=record.filename,
-                    size=size_text,
-                    path=record.target_path or "-",
-                )
-            )
+    for entry in _iter_history_entries(records, language):
+        ui.print(entry)
+
+
+def export_history_records(
+    ui: TerminalUI,
+    language: str,
+    export_path: Optional[str],
+    quiet: bool,
+) -> int:
+    records = load_records(limit=None)
+    if not records:
+        emit_message(ui, language, "history_empty", quiet)
+        return 0
+
+    export_dir = Path.cwd() if not export_path else Path(export_path)
+    export_dir = export_dir.expanduser()
+    try:
+        export_dir.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        emit_message(
+            ui,
+            language,
+            "history_export_failed",
+            quiet,
+            error=True,
+            reason=exc,
+        )
+        return 1
+
+    output_path = export_dir / f"glitter-history-{len(records)}.txt"
+    if output_path.exists():
+        emit_message(
+            ui,
+            language,
+            "history_export_exists",
+            quiet,
+            error=True,
+            path=str(output_path.resolve()),
+        )
+        return 1
+    header = render_message("history_header", language).plain
+    lines = [header]
+    lines.extend(entry.plain for entry in _iter_history_entries(records, language))
+    content = "\n".join(lines).rstrip() + "\n"
+
+    try:
+        output_path.write_text(content, encoding="utf-8")
+    except OSError as exc:
+        emit_message(
+            ui,
+            language,
+            "history_export_failed",
+            quiet,
+            error=True,
+            reason=exc,
+        )
+        return 1
+
+    emit_message(
+        ui,
+        language,
+        "history_export_success",
+        quiet,
+        path=str(output_path.resolve()),
+    )
+    return 0
 
 
 def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: str) -> str:
@@ -1539,44 +1608,34 @@ def run_peers_command() -> int:
     return exit_code
 
 
-def run_history_command(clear: bool = False, *, quiet: bool = False) -> int:
+def run_history_command(
+    clear: bool = False,
+    export: Optional[str] = None,
+    *,
+    quiet: bool = False,
+) -> int:
     debug = os.getenv("GLITTER_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
     app, config, ui, language = initialize_application(debug)
 
-    if quiet and not clear:
+    direct_mode = clear or (export is not None)
+    if quiet and not direct_mode:
         emit_message(ui, language, "cli_quiet_direct_error", quiet, error=True)
         return 2
+
+    if export is not None:
+        export_result = export_history_records(ui, language, export, quiet)
+        if export_result != 0:
+            return export_result
 
     if clear:
         clear_history()
         emit_message(ui, language, "settings_history_cleared", quiet)
         return 0
 
-    try:
-        app.start()
-    except OSError as exc:
-        failure_port = config.transfer_port or DEFAULT_TRANSFER_PORT
-        ui.print(
-            render_message(
-                "settings_port_failed",
-                language,
-                port=failure_port,
-                error=exc,
-            )
-        )
-        app.stop()
-        return 1
+    if export is not None:
+        return 0
 
-    try:
-        show_history(ui, language)
-    finally:
-        try:
-            app.cancel_pending_requests()
-        finally:
-            try:
-                app.stop()
-            except KeyboardInterrupt:
-                pass
+    show_history(ui, language)
     return 0
 
 
@@ -1962,6 +2021,13 @@ def build_parser(language: str) -> argparse.ArgumentParser:
         help=get_message("cli_history_clear_help", language),
     )
     history_parser.add_argument(
+        "--export",
+        nargs="?",
+        const="",
+        metavar="PATH",
+        help=get_message("cli_history_export_help", language),
+    )
+    history_parser.add_argument(
         "-q",
         "--quiet",
         action="store_true",
@@ -2079,6 +2145,7 @@ def main(argv: Optional[list[str]] = None) -> int:
     if getattr(args, "command", None) == "history":
         return run_history_command(
             clear=bool(getattr(args, "clear", False)),
+            export=getattr(args, "export", None),
             quiet=bool(getattr(args, "quiet", False)),
         )
     if getattr(args, "command", None) == "settings":

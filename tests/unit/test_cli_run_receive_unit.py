@@ -133,8 +133,9 @@ def test_cli_main_dispatches_history(monkeypatch: pytest.MonkeyPatch):
 
     monkeypatch.setattr(cli, "build_parser", lambda language: DummyParser())
 
-    def fake_run_history(clear: bool, *, quiet: bool = False):
+    def fake_run_history(clear: bool, *, export: Optional[str] = None, quiet: bool = False):
         called["clear"] = clear
+        called["export"] = export
         called["quiet"] = quiet
         return 42
 
@@ -142,7 +143,7 @@ def test_cli_main_dispatches_history(monkeypatch: pytest.MonkeyPatch):
 
     exit_code = cli.main(["history", "--clear"])
     assert exit_code == 42
-    assert called == {"clear": True, "quiet": False}
+    assert called == {"clear": True, "export": None, "quiet": False}
 
 
 def test_run_receive_quiet_reports_error(monkeypatch: pytest.MonkeyPatch, dummy_setup):
