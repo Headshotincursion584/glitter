@@ -48,3 +48,8 @@ include = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["glitter"]
+
+[tool.pytest.ini_options]
+markers = [
+    "smoke: fast end-to-end smoke tests for critical CLI flows",
+]

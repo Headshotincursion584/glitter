@@ -1,0 +1,4 @@
+[run]
+parallel = True
+concurrency = thread, multiprocessing
+source = glitter
