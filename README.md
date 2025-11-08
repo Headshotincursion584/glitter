@@ -19,7 +19,7 @@ Glitter is a cross‑platform, terminal‑based tool for sending files over a lo
 - OS support(x86/ARM): Linux, macOS, Windows
 - Bilingual UI: English, 中文 (switchable in settings)
 - Peer discovery via UDP broadcast + smart replies (or manual IP entry)
-- Encrypted transfer (DH key exchange + stream cipher)
+- Encrypted transfer (DH key exchange + ChaCha20 stream cipher)
 - Device fingerprint verification (TOFU) to flag impersonation attempts
 - Integrity check (SHA-256) after receive
 - Directory transfer: send entire folders (auto-zipped, zero compression)
