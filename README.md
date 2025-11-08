@@ -4,9 +4,10 @@
 
 # Glitter — Simple File Transfer CLI
 
-[![PyPI](https://img.shields.io/pypi/v/glitter-cli.svg)](https://pypi.org/project/glitter-cli/)
-[![Downloads](https://img.shields.io/pypi/dm/glitter-cli.svg)](https://pypi.org/project/glitter-cli/)
 [![Python](https://img.shields.io/badge/python-3.9%2B-blue)](https://www.python.org/downloads/)
+[![PyPI](https://img.shields.io/pypi/v/glitter-cli.svg)](https://pypi.org/project/glitter-cli/)
+[![GitHub release](https://img.shields.io/github/v/release/scarletkc/glitter.svg)](https://github.com/scarletkc/glitter/releases)
+[![Downloads](https://img.shields.io/pypi/dm/glitter-cli.svg)](https://pypi.org/project/glitter-cli/)
 [![CI](https://img.shields.io/github/actions/workflow/status/scarletkc/glitter/publish.yml?branch=main)](https://github.com/scarletkc/glitter/actions/workflows/publish.yml)
 [![License](https://img.shields.io/github/license/scarletkc/glitter.svg)](https://github.com/scarletkc/glitter/blob/main/LICENSE)
 
