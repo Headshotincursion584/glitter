@@ -104,6 +104,20 @@ class TransferTicket:
         self._event.set()
 
 
+@dataclass(frozen=True)
+class SendFilePayload:
+    """Contains derived metadata for a pending outbound transfer."""
+
+    send_path: Path
+    cleanup_path: Optional[Path]
+    filename: str
+    content_type: str
+    archive_format: Optional[str]
+    original_size: Optional[int]
+    file_size: int
+    file_hash: str
+
+
 class TransferCancelled(Exception):
     """Raised when the user cancels an in-progress transfer."""
 
@@ -253,68 +267,10 @@ class TransferService:
         progress_cb: Optional[Callable[[int, int], None]] = None,
         cancel_event: Optional[threading.Event] = None,
     ) -> tuple[str, str, Optional[str]]:
-        if not file_path.exists():
-            raise FileNotFoundError(f"path does not exist: {file_path}")
-
-        cleanup_path: Optional[Path] = None
-        send_path = file_path
-        filename = file_path.name
-        content_type = "directory" if file_path.is_dir() else "file"
-        archive_format: Optional[str] = None
-        original_size: Optional[int] = None
-
-        if content_type == "directory":
-            send_path, original_size = self._create_zip_from_directory(file_path)
-            cleanup_path = send_path
-            archive_format = "zip-store"
-        elif not file_path.is_file():
-            raise ValueError("path must be a file or directory")
-
-        try:
-            file_size = send_path.stat().st_size
-            file_hash = compute_file_sha256(send_path)
-        except Exception:
-            if cleanup_path:
-                with contextlib.suppress(OSError):
-                    cleanup_path.unlink()
-            raise
-
-        with self._encryption_lock:
-            encrypting = self._encryption_enabled
-
-        nonce: Optional[bytes] = None
-        private_key: Optional[int] = None
-        public_key: Optional[int] = None
-        if encrypting:
-            nonce = random_nonce()
-            private_key, public_key = generate_dh_keypair()
-        metadata = {
-            "type": "transfer",
-            "protocol": PROTOCOL_VERSION,
-            "request_id": str(uuid.uuid4()),
-            "filename": filename,
-            "filesize": file_size,
-            "sender_name": self.device_name,
-            "sender_language": self.language,
-            "version": __version__,
-            "sha256": file_hash,
-            "content_type": content_type,
-            "encryption": "enabled" if encrypting else "disabled",
-        }
-        if self.device_id:
-            metadata["sender_id"] = self.device_id
-        if self._identity_public:
-            metadata["identity"] = {
-                "public": encode_bytes(self._identity_public),
-                "fingerprint": self._identity_display,
-            }
-        if encrypting and nonce is not None and public_key is not None:
-            metadata["nonce"] = encode_bytes(nonce)
-            metadata["dh_public"] = encode_public(public_key)
-        if archive_format:
-            metadata["archive"] = archive_format
-        if original_size is not None:
-            metadata["original_size"] = original_size
+        payload = self._prepare_send_file_payload(file_path)
+        encrypting = self._is_encryption_enabled()
+        nonce, private_key, public_key = self._generate_sender_crypto(encrypting)
+        metadata = self._build_sender_metadata(payload, encrypting, nonce, public_key)
         message = json.dumps(metadata, ensure_ascii=False) + "\n"
 
         responder_id: Optional[str] = None
@@ -329,7 +285,7 @@ class TransferService:
                 response_buffer = bytearray()
                 while True:
                     if cancel_event and cancel_event.is_set():
-                        raise TransferCancelled(file_hash)
+                        raise TransferCancelled(payload.file_hash)
                     try:
                         chunk = sock.recv(4096)
                     except (socket.timeout, TimeoutError):
@@ -351,7 +307,7 @@ class TransferService:
                     break
                 cipher: Optional[StreamCipher] = None
                 if response == "DECLINE":
-                    return "declined", file_hash, responder_id
+                    return "declined", payload.file_hash, responder_id
                 if not response.startswith("ACCEPT"):
                     raise RuntimeError(f"unexpected response: {response}")
                 payload_text = response[6:].strip()
@@ -413,11 +369,11 @@ class TransferService:
                 # Once the handshake has succeeded, switch back to blocking mode for data transfer
                 bytes_sent = 0
                 if progress_cb:
-                    progress_cb(bytes_sent, file_size)
-                with send_path.open("rb") as file_handle:
+                    progress_cb(bytes_sent, payload.file_size)
+                with payload.send_path.open("rb") as file_handle:
                     while True:
                         if cancel_event and cancel_event.is_set():
-                            raise TransferCancelled(file_hash)
+                            raise TransferCancelled(payload.file_hash)
                         chunk = file_handle.read(BUFFER_SIZE)
                         if not chunk:
                             break
@@ -425,17 +381,184 @@ class TransferService:
                         sock.sendall(memoryview(outbound))
                         bytes_sent += len(chunk)
                         if progress_cb:
-                            progress_cb(bytes_sent, file_size)
+                            progress_cb(bytes_sent, payload.file_size)
                 # Clean shutdown
                 try:
                     sock.shutdown(socket.SHUT_WR)
                 except OSError:
                     pass
-                return "accepted", file_hash, responder_id
+                return "accepted", payload.file_hash, responder_id
         finally:
+            if payload.cleanup_path:
+                with contextlib.suppress(OSError):
+                    payload.cleanup_path.unlink()
+
+    def _prepare_send_file_payload(self, file_path: Path) -> SendFilePayload:
+        if not file_path.exists():
+            raise FileNotFoundError(f"path does not exist: {file_path}")
+
+        cleanup_path: Optional[Path] = None
+        send_path = file_path
+        filename = file_path.name
+        content_type = "directory" if file_path.is_dir() else "file"
+        archive_format: Optional[str] = None
+        original_size: Optional[int] = None
+
+        if content_type == "directory":
+            send_path, original_size = self._create_zip_from_directory(file_path)
+            cleanup_path = send_path
+            archive_format = "zip-store"
+        elif not file_path.is_file():
+            raise ValueError("path must be a file or directory")
+
+        try:
+            file_size = send_path.stat().st_size
+            file_hash = compute_file_sha256(send_path)
+        except Exception:
             if cleanup_path:
                 with contextlib.suppress(OSError):
                     cleanup_path.unlink()
+            raise
+
+        return SendFilePayload(
+            send_path=send_path,
+            cleanup_path=cleanup_path,
+            filename=filename,
+            content_type=content_type,
+            archive_format=archive_format,
+            original_size=original_size,
+            file_size=file_size,
+            file_hash=file_hash,
+        )
+
+    def _is_encryption_enabled(self) -> bool:
+        with self._encryption_lock:
+            return self._encryption_enabled
+
+    @staticmethod
+    def _generate_sender_crypto(encrypting: bool) -> tuple[Optional[bytes], Optional[int], Optional[int]]:
+        if not encrypting:
+            return None, None, None
+        nonce = random_nonce()
+        private_key, public_key = generate_dh_keypair()
+        return nonce, private_key, public_key
+
+    def _build_sender_metadata(
+        self,
+        payload: SendFilePayload,
+        encrypting: bool,
+        nonce: Optional[bytes],
+        public_key: Optional[int],
+    ) -> Dict[str, object]:
+        metadata: Dict[str, object] = {
+            "type": "transfer",
+            "protocol": PROTOCOL_VERSION,
+            "request_id": str(uuid.uuid4()),
+            "filename": payload.filename,
+            "filesize": payload.file_size,
+            "sender_name": self.device_name,
+            "sender_language": self.language,
+            "version": __version__,
+            "sha256": payload.file_hash,
+            "content_type": payload.content_type,
+            "encryption": "enabled" if encrypting else "disabled",
+        }
+        if self.device_id:
+            metadata["sender_id"] = self.device_id
+        if self._identity_public:
+            metadata["identity"] = {
+                "public": encode_bytes(self._identity_public),
+                "fingerprint": self._identity_display,
+            }
+        if encrypting and nonce is not None and public_key is not None:
+            metadata["nonce"] = encode_bytes(nonce)
+            metadata["dh_public"] = encode_public(public_key)
+        if payload.archive_format:
+            metadata["archive"] = payload.archive_format
+        if payload.original_size is not None:
+            metadata["original_size"] = payload.original_size
+        return metadata
+
+    @staticmethod
+    def _configure_incoming_socket(conn: socket.socket) -> None:
+        try:
+            conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+            conn.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFFER_SIZE)
+        except OSError:
+            pass
+
+    @staticmethod
+    def _read_transfer_metadata(reader) -> Optional[dict]:
+        try:
+            header_line = _readline(reader)
+        except ConnectionError:
+            return None
+        try:
+            metadata = json.loads(header_line)
+        except json.JSONDecodeError:
+            return None
+        if metadata.get("type") != "transfer":
+            return None
+        return metadata
+
+    @staticmethod
+    def _parse_identity_payload(payload: object) -> tuple[Optional[bytes], Optional[str], Optional[str]]:
+        identity_public: Optional[bytes] = None
+        identity_display: Optional[str] = None
+        identity_hex: Optional[str] = None
+        if not isinstance(payload, dict):
+            return identity_public, identity_display, identity_hex
+        public_token = payload.get("public")
+        if isinstance(public_token, str) and public_token:
+            with contextlib.suppress(Exception):
+                identity_public = decode_bytes(public_token)
+        fingerprint_token = payload.get("fingerprint")
+        if identity_public:
+            computed_display, computed_hex = fingerprint_from_public_key(identity_public)
+            identity_display = computed_display
+            identity_hex = computed_hex
+            # Prefer computed display but keep provided token available for UI elsewhere.
+            if isinstance(fingerprint_token, str) and fingerprint_token and fingerprint_token != computed_display:
+                identity_display = computed_display
+        elif isinstance(fingerprint_token, str) and fingerprint_token:
+            identity_display = fingerprint_token
+        return identity_public, identity_display, identity_hex
+
+    def _evaluate_identity_status(
+        self,
+        sender_id: Optional[str],
+        sender_name: str,
+        identity_public: Optional[bytes],
+        identity_hex: Optional[str],
+        identity_display: Optional[str],
+        identity_payload: object,
+    ) -> tuple[str, Optional[str], Optional[str]]:
+        identity_status = "missing"
+        identity_previous: Optional[str] = None
+        if identity_public and identity_hex:
+            identity_status = "new"
+            if self._trust_store and sender_id:
+                existing = self._trust_store.get(sender_id)
+                if existing:
+                    if existing.fingerprint_hex == identity_hex:
+                        identity_status = "trusted"
+                        self._trust_store.touch(sender_id, sender_name)
+                        identity_display = identity_display or existing.fingerprint_display
+                    else:
+                        identity_status = "changed"
+                        identity_previous = existing.fingerprint_display or existing.fingerprint_hex
+                else:
+                    display_value = identity_display or identity_hex[:16].upper()
+                    self._trust_store.remember(
+                        sender_id,
+                        sender_name,
+                        identity_public,
+                        display_value,
+                        identity_hex,
+                    )
+        elif identity_payload:
+            identity_status = "unknown"
+        return identity_status, identity_previous, identity_display
 
     def update_identity(self, device_name: str, language: str) -> None:
         self.device_name = device_name
@@ -473,21 +596,10 @@ class TransferService:
 
     def _handle_client(self, conn: socket.socket, addr: Tuple[str, int]) -> None:
         with conn:
-            try:
-                conn.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-                conn.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, BUFFER_SIZE)
-            except OSError:
-                pass  
+            self._configure_incoming_socket(conn)
             reader = conn.makefile("rb")
-            try:
-                header_line = _readline(reader)
-            except ConnectionError:
-                return
-            try:
-                metadata = json.loads(header_line)
-            except json.JSONDecodeError:
-                return
-            if metadata.get("type") != "transfer":
+            metadata = self._read_transfer_metadata(reader)
+            if not metadata:
                 return
 
             request_id = metadata.get("request_id") or str(uuid.uuid4())
@@ -504,24 +616,7 @@ class TransferService:
             sender_id_raw = metadata.get("sender_id")
             sender_id = sender_id_raw if isinstance(sender_id_raw, str) and sender_id_raw else None
             identity_payload = metadata.get("identity")
-            identity_public: Optional[bytes] = None
-            identity_display: Optional[str] = None
-            identity_hex: Optional[str] = None
-            if isinstance(identity_payload, dict):
-                public_token = identity_payload.get("public")
-                if isinstance(public_token, str) and public_token:
-                    with contextlib.suppress(Exception):
-                        identity_public = decode_bytes(public_token)
-                fingerprint_token = identity_payload.get("fingerprint")
-                if identity_public:
-                    computed_display, computed_hex = fingerprint_from_public_key(identity_public)
-                    identity_display = computed_display
-                    identity_hex = computed_hex
-                    if isinstance(fingerprint_token, str) and fingerprint_token and fingerprint_token != computed_display:
-                        # Prefer computed display but keep provided token for UI reference.
-                        identity_display = computed_display
-                elif isinstance(fingerprint_token, str) and fingerprint_token:
-                    identity_display = fingerprint_token
+            identity_public, identity_display, identity_hex = self._parse_identity_payload(identity_payload)
             file_hash = metadata.get("sha256")
             nonce_encoded = metadata.get("nonce")
             peer_public_encoded = metadata.get("dh_public")
@@ -542,36 +637,14 @@ class TransferService:
             elif isinstance(encryption_flag, bool):
                 encrypted_transfer = encryption_flag
 
-            identity_status = "missing"
-            identity_previous: Optional[str] = None
-            if identity_public and identity_hex:
-                identity_status = "new"
-                if self._trust_store:
-                    peer_key = sender_id or None
-                    if peer_key:
-                        existing = self._trust_store.get(peer_key)
-                        if existing:
-                            if existing.fingerprint_hex == identity_hex:
-                                identity_status = "trusted"
-                                self._trust_store.touch(peer_key, sender_name)
-                                identity_display = identity_display or existing.fingerprint_display
-                            else:
-                                identity_status = "changed"
-                                identity_previous = existing.fingerprint_display or existing.fingerprint_hex
-                        else:
-                            display_value = identity_display or identity_hex[:16].upper()
-                            self._trust_store.remember(
-                                peer_key,
-                                sender_name,
-                                identity_public,
-                                display_value,
-                                identity_hex,
-                            )
-                    else:
-                        # Without a stable peer_id, fall back to best-effort status only.
-                        identity_status = "new"
-            elif identity_payload:
-                identity_status = "unknown"
+            identity_status, identity_previous, identity_display = self._evaluate_identity_status(
+                sender_id,
+                sender_name,
+                identity_public,
+                identity_hex,
+                identity_display,
+                identity_payload,
+            )
 
             with self._encryption_lock:
                 require_encryption = self._encryption_enabled
