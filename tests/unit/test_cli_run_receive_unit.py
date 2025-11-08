@@ -46,6 +46,10 @@ class DummyApp:
     def encryption_enabled(self) -> bool:
         return self._encryption_enabled
 
+    @property
+    def auto_accept_mode(self) -> str:
+        return self.auto_mode or "off"
+
     def set_encryption_enabled(self, enabled: bool) -> None:
         self._encryption_enabled = enabled
 
@@ -182,3 +186,34 @@ def test_run_settings_quiet_direct_mode_suppresses_output(monkeypatch: pytest.Mo
     assert config.language == "zh"
     assert app.identity_updates == [(config.device_name, "zh")]
     assert ui.printed == []
+
+
+def test_settings_menu_can_export_history(monkeypatch: pytest.MonkeyPatch, dummy_setup, tmp_path: Path):
+    app, config, _ = dummy_setup
+
+    export_calls: dict[str, object] = {}
+
+    def fake_export(ui_obj, language: str, export_path: str | None, quiet: bool) -> int:
+        export_calls["language"] = language
+        export_calls["path"] = export_path
+        export_calls["quiet"] = quiet
+        return 0
+
+    monkeypatch.setattr(cli, "export_history_records", fake_export)
+
+    class MenuUI(DummyUI):
+        def __init__(self) -> None:
+            super().__init__()
+            self._inputs = iter(["9", str(tmp_path / "exports-menu"), "10"])
+
+        def input(self, prompt):  # type: ignore[override]
+            return next(self._inputs)
+
+    ui = MenuUI()
+    language = cli.settings_menu(ui, app, config, "en")
+    assert language == "en"
+    assert export_calls == {
+        "language": "en",
+        "path": str(tmp_path / "exports-menu"),
+        "quiet": False,
+    }

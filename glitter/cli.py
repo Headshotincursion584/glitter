@@ -1292,6 +1292,20 @@ def settings_menu(ui: TerminalUI, app: GlitterApp, config: AppConfig, language: 
             else:
                 show_message(ui, "operation_cancelled", language)
         elif choice == "9":
+            try:
+                export_target = ui.input(
+                    render_message(
+                        "settings_history_export_prompt",
+                        language,
+                        cwd=str(Path.cwd()),
+                    )
+                ).strip()
+            except (KeyboardInterrupt, EOFError):
+                ui.blank()
+                show_message(ui, "operation_cancelled", language)
+                continue
+            export_history_records(ui, language, export_target or None, quiet=False)
+        elif choice == "10":
             return language
         else:
             show_message(ui, "invalid_choice", language)
