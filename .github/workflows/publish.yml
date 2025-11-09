@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   pytest:
     name: Pytest (ubuntu-latest)
@@ -164,6 +167,9 @@ jobs:
             artifact-suffix: linux
             built-binary: dist/glitter
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      actions: write
 
     steps:
       - name: Checkout repository
@@ -213,6 +219,7 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
 
     steps:
       - name: Download build artifacts
