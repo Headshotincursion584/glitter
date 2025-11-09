@@ -28,6 +28,10 @@ class DummyConsole:
 
         return _capture()
 
+    def input(self, prompt: str) -> str:
+        self.input_prompts.append(prompt)
+        return "answer"
+
 
 class DummyUI(TerminalUI):
     def __init__(self) -> None:
@@ -66,3 +70,15 @@ def test_show_message_random_prompt(monkeypatch: pytest.MonkeyPatch) -> None:
     show_message(ui, "goodbye", "en")
 
     assert len(ui.console.print_calls) == 2  # goodbye + support_prompt
+
+
+def test_terminal_ui_carriage_and_input() -> None:
+    console = DummyConsole()
+    ui = TerminalUI(console=console)
+    ui.print("hello")
+    ui.carriage("progress", padding="> ")
+    assert console.print_calls
+    assert ui.input("prompt") == "answer"
+    ui.blank()
+    ui.flush()
+    assert ui._last_carriage_width == 0
